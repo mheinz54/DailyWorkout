@@ -1,0 +1,7 @@
+# Ignore local tracking database files
+*.db
+workout_progress.db
+
+# Ignore macOS system display cache files
+.DS_Store
+
