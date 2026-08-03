@@ -6,6 +6,8 @@
 
 ---
 
+&nbsp;
+
 ### 🧱 Phase 1: Foot & Ankle Foundation (5 Minutes)
 
 #### 1. Flat-Ground Straight-Knee Calf Raises
@@ -21,6 +23,8 @@
 *   **Why:** Elevates and strengthens the deep plantar fascia arch structure.
 
 <img src="images/short_foot_isometric_holds.jpg" width="350" />
+
+&nbsp;
 
 ---
 
@@ -39,6 +43,8 @@
 *   **Why:** Directs load to the VMO muscle right above the kneecap to permanently protect the joint.
 
 <img src="images/backward_step-downs.jpg" width="350" />
+
+&nbsp;
 
 ---
 
