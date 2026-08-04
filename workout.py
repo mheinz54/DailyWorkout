@@ -5,7 +5,8 @@ from datetime import datetime
 from PyQt6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, 
     QHBoxLayout, QPushButton, QLabel, QTextBrowser, 
-    QFileDialog, QMessageBox, QDialog, QGridLayout
+    QFileDialog, QMessageBox, QDialog, QGridLayout, 
+    QSpinBox, QFormLayout, QDialogButtonBox
 )
 from PyQt6.QtGui import QFont
 from PyQt6.QtCore import Qt, QTimer
@@ -22,9 +23,28 @@ def init_db():
             file_path TEXT
         )
     """)
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS workout_history (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            workout_name TEXT NOT NULL,
+            workout_date TEXT NOT NULL,
+            duration_seconds INTEGER NOT NULL
+        )
+    """)
     days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
     for day in days:
         cursor.execute("INSERT OR IGNORE INTO schedule (day_name, file_path) VALUES (?, ?)", (day, ""))
+    conn.commit()
+    conn.close()
+
+
+def save_workout_record(workout_name, workout_date, duration_seconds):
+    conn = sqlite3.connect(DB_NAME)
+    cursor = conn.cursor()
+    cursor.execute(
+        "INSERT INTO workout_history (workout_name, workout_date, duration_seconds) VALUES (?, ?, ?)",
+        (workout_name, workout_date, duration_seconds),
+    )
     conn.commit()
     conn.close()
 
@@ -42,6 +62,39 @@ def save_file_for_day(day_name, file_path):
     cursor.execute("UPDATE schedule SET file_path = ? WHERE day_name = ?", (file_path, day_name))
     conn.commit()
     conn.close()
+
+
+# --- RECORD WORKOUT DIALOG ---
+class WorkoutRecordDialog(QDialog):
+    def __init__(self, parent=None, workout_name="Unknown Workout", total_seconds=0):
+        super().__init__(parent)
+        self.setWindowTitle("Record Workout?")
+        self.setMinimumWidth(320)
+
+        layout = QVBoxLayout(self)
+        layout.addWidget(QLabel(f"Would you like to record '{workout_name}'?"))
+
+        form_layout = QFormLayout()
+        self.minutes_spin = QSpinBox()
+        self.minutes_spin.setRange(0, 999)
+        self.minutes_spin.setValue(total_seconds // 60)
+        self.seconds_spin = QSpinBox()
+        self.seconds_spin.setRange(0, 59)
+        self.seconds_spin.setValue(total_seconds % 60)
+
+        form_layout.addRow("Minutes:", self.minutes_spin)
+        form_layout.addRow("Seconds:", self.seconds_spin)
+        layout.addLayout(form_layout)
+
+        buttons = QDialogButtonBox(
+            QDialogButtonBox.StandardButton.Yes | QDialogButtonBox.StandardButton.No
+        )
+        buttons.accepted.connect(self.accept)
+        buttons.rejected.connect(self.reject)
+        layout.addWidget(buttons)
+
+    def get_duration_seconds(self):
+        return (self.minutes_spin.value() * 60) + self.seconds_spin.value()
 
 
 # --- ASSIGNMENT MODAL WINDOW (7-DAY SCHEDULER) ---
@@ -110,6 +163,7 @@ class WorkoutViewerApp(QMainWindow):
 
         # Core Timer State Variables
         self.timer_seconds = 0
+        self.current_workout_path = ""
         self.stopwatch = QTimer()
         self.stopwatch.timeout.connect(self.update_timer_display)
 
@@ -193,6 +247,7 @@ class WorkoutViewerApp(QMainWindow):
         """Starts or pauses the countdown routine cycle and adjusts label layout."""
         if self.stopwatch.isActive():
             self.stopwatch.stop()
+            self.prompt_record_workout()
             self.start_stop_btn.setText("Start")
             self.start_stop_btn.setStyleSheet("""
                 QPushButton { background-color: #4a4a4a; color: white; border-radius: 4px; padding: 6px 14px; }
@@ -205,6 +260,20 @@ class WorkoutViewerApp(QMainWindow):
                 QPushButton { background-color: #e0a800; color: black; border-radius: 4px; padding: 6px 14px; }
                 QPushButton:hover { background-color: #d39e00; }
             """)
+
+    def prompt_record_workout(self):
+        workout_name = os.path.basename(self.current_workout_path) if self.current_workout_path else "Unknown Workout"
+        duration_label = self.timer_label.text()
+        dialog = WorkoutRecordDialog(self, workout_name=workout_name, total_seconds=self.timer_seconds)
+        response = dialog.exec()
+
+        if response == QDialog.DialogCode.Accepted:
+            duration_seconds = dialog.get_duration_seconds()
+            save_workout_record(
+                workout_name,
+                datetime.now().strftime("%Y-%m-%d"),
+                duration_seconds,
+            )
 
     def reset_timer(self):
         """Halts the counter execution frame instantly and resets numerical layout digits."""
@@ -230,10 +299,12 @@ class WorkoutViewerApp(QMainWindow):
         saved_path = get_file_for_day(today_name)
 
         if saved_path and os.path.exists(saved_path):
+            self.current_workout_path = saved_path
             self.render_markdown(saved_path)
             self.file_label.setText(f"Loaded today's scheduled file ({today_name}): {os.path.abspath(saved_path)}")
             self.file_label.setStyleSheet("color: #007acc; font-style: normal; margin-top: 4px; margin-bottom: 8px; margin-left: 2px;")
         else:
+            self.current_workout_path = ""
             self.display_area.setMarkdown(
                 f"<h1>Welcome</h1><p>No workout file is assigned for <b>{today_name}</b> yet.</p>"
                 "<p>Click <b>Manage Schedule</b> above to link your `.md` files to days of the week.</p>"
@@ -244,6 +315,7 @@ class WorkoutViewerApp(QMainWindow):
             self, "Select Markdown File", "", "Markdown Files (*.md *.markdown);;Text Files (*.txt);;All Files (*)"
         )
         if file_path:
+            self.current_workout_path = file_path
             self.render_markdown(file_path)
             self.file_label.setText(os.path.abspath(file_path))
             self.file_label.setStyleSheet("color: green; font-style: normal; margin-top: 4px; margin-bottom: 8px; margin-left: 2px;")
