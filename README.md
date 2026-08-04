@@ -1,110 +1,70 @@
-# 🏋️‍♂️ Daily 15-Minute Stability Workout System
+# Daily Workout Viewer
 
-A localized, secure lower-body, core, and posture tracking system optimized for macOS. This utility manages an automated physical therapy and posture routine, launches interactive tracking templates inside Visual Studio Code, and logs raw exercise completion metrics cleanly into a local SQLite database.
+A small PyQt6 desktop app for viewing scheduled markdown workout routines, tracking a stopwatch, and recording completed workouts to a local SQLite database.
 
-## 📂 Project Architecture
+## Project layout
+
 ```text
 DailyWorkout/
-│
-├── README.md                 # Project configuration & deployment guide
-├── workout.py                # Core Python orchestration engine
-├── .gitignore                # Restricts binary DB pushes to Git
-├── workout_progress.db       # Local SQLite tracking database (auto-generated)
-│
-├── Ankle_Knee_Routine.md     # Monday Workout Template
-├── Core_Glute_Routine.md     # Tuesday Workout Template
-├── Back_Shoulders_Routine.md # Thursday Workout Template
-├── Chest_Hamstrings_Routine.md # Friday Workout Template
-│
-└── images/                   # Local folder containing step-by-step imagery
+├── README.md
+├── src/
+│   ├── __init__.py
+│   ├── main.py
+│   ├── database.py
+│   ├── schedule_dialog.py
+│   ├── workout_record_dialog.py
+│   ├── workout_history_dialog.py
+│   └── workout_history_edit_dialog.py
+├── data/
+│   └── workout_schedule.db
+├── workouts/
+│   ├── Ankle_Knee_Routine.md
+│   ├── Back_Shoulders_Routine.md
+│   ├── Chest_Hamstrings_Routine.md
+│   ├── Core_Glute_Routine.md
+│   └── images/
+└── .gitignore
 ```
 
----
+## Requirements
 
-## ⚙️ Requirements & Core Configuration
-* **Operating System:** macOS (Catalina or higher)
-* **Text Editor:** Visual Studio Code (set as default for markdown previewing)
-* **Python Runtime:** Python 3 (built natively into macOS command-line tools)
+- Python 3.10+
+- PyQt6
 
-### Verify File Path Execution
-To guarantee absolute path compatibility for system automations, ensure this repository lives inside your local Documents index at:
-`~/Documents/DailyWorkout/`
+Install the app dependency with:
 
----
-
-## 🚀 Step-by-Step Native macOS Automation (`launchd`)
-
-To have this routine automatically pop up every weekday without keeping any terminal windows open, configure the built-in macOS `launchd` manager.
-
-### Step 1: Create the Automation Profile Plist
-Open your Mac **Terminal** application and execute the following command to spin up a native configuration profile:
 ```bash
-nano ~/Library/LaunchAgents/com.user.workout.plist
+pip3 install PyQt6
 ```
 
-### Step 2: Inject the Configuration Script
-Paste the following complete XML markup directly into your open terminal editor. 
+## Run the app
 
-*Note: If your Mac profile username is not `yourusername`, modify the absolute paths in the `<array>` parameters below to match your machine's exact directory.*
+From the repository root:
 
-```xml
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://apple.com">
-<plist version="1.0">
-<dict>
-    <key>Label</key>
-    <string>com.user.workout</string>
-    <key>ProgramArguments</key>
-    <array>
-        <string>/usr/bin/python3</string>
-        <string>/Users/yourusername/Documents/DailyWorkout/workout.py</string>
-    </array>
-    <key>StartCalendarInterval</key>
-    <array>
-        <dict>
-            <key>Hour</key>
-            <integer>17</integer> <!-- 5:00 PM System Activation Time (24h format) -->
-            <key>Minute</key>
-            <integer>00</integer>
-        </dict>
-    </array>
-    <key>StandardOutPath</key>
-    <string>/tmp/workout.stdout.log</string>
-    <key>StandardErrorPath</key>
-    <string>/tmp/workout.stderr.log</string>
-</dict>
-</plist>
-```
-*Save and close the editor by hitting `Control + O`, `Enter`, and then `Control + X`.*
-
-### Step 3: Register and Load the Script to the OS
-To load this profile into your active macOS user session background execution threads, run:
 ```bash
-launchctl bootstrap gui/\$(id -u) ~/Library/LaunchAgents/com.user.workout.plist
+cd /Users/matthew.heinz/Projects/DailyWorkout
+python3 src/main.py
 ```
 
-### Step 4: Grant System Permissions
-When the script runs automatically for the first time, macOS will display a security banner requesting permissions to allow Terminal or Python to utilize **System Events**. Click **Allow** or navigate manually to *System Settings > Privacy & Security > Automation* to permit script triggers.
+If you are already in the project directory, this is enough:
 
----
-
-## 🛠️ Management & Diagnostics
-
-### Manual Execution Testing
-If you ever want to launch the tool instantly outside of your scheduled daily alert hour, execute the script natively via your terminal:
 ```bash
-python3 ~/Documents/DailyWorkout/workout.py
+python3 src/main.py
 ```
 
-### Review Progress Reports Direct from SQLite
-Your records are stored securely on your local hard drive. To quickly check your raw data tables directly from the command-line interface, query the local database:
-```bash
-sqlite3 ~/Documents/DailyWorkout/workout_progress.db "SELECT date, routine_name, completed_exercises FROM history ORDER BY date DESC;"
-```
+## How it works
 
-### Unloading / Pausing the Automation Schedule
-If you go on vacation or wish to temporarily disable the automation pop-up triggers, run this command to unload it from system memory:
-```bash
-launchctl bootout gui/\$(id -u) ~/Library/LaunchAgents/com.user.workout.plist
+- Use the Select Markdown File button to load a workout routine.
+- Use Manage Schedule to assign markdown workout files to each weekday.
+- Use the Start/Stop button to run the stopwatch.
+- When you stop the timer, you can record the workout with the workout name, date, and duration.
+- Use Workout History to review saved records grouped by workout, edit them, delete them, and see a calendar of recorded dates.
+
+## Data storage
+
+Workout history and schedule settings are stored in:
+
+```text
+data/workout_schedule.db
 ```
 
