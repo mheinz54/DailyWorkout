@@ -39,6 +39,36 @@ def init_db():
             muscle_groups TEXT
         )
     """)
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS workout_templates (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            description TEXT NOT NULL,
+            equipment_needed TEXT,
+            phase_rest_seconds INTEGER NOT NULL DEFAULT 0
+        )
+    """)
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS workout_phases (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            workout_template_id INTEGER NOT NULL,
+            phase_name TEXT NOT NULL,
+            description TEXT,
+            repeat_count INTEGER NOT NULL DEFAULT 1,
+            rest_between_exercises_seconds INTEGER NOT NULL DEFAULT 0,
+            FOREIGN KEY (workout_template_id) REFERENCES workout_templates (id) ON DELETE CASCADE
+        )
+    """)
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS workout_phase_exercises (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            phase_id INTEGER NOT NULL,
+            exercise_id INTEGER NOT NULL,
+            display_order INTEGER NOT NULL DEFAULT 0,
+            FOREIGN KEY (phase_id) REFERENCES workout_phases (id) ON DELETE CASCADE,
+            FOREIGN KEY (exercise_id) REFERENCES exercises (id) ON DELETE CASCADE
+        )
+    """)
     days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
     for day in days:
         cursor.execute("INSERT OR IGNORE INTO schedule (day_name, file_path) VALUES (?, ?)", (day, ""))
@@ -186,6 +216,111 @@ def update_exercise_record(exercise_id, name, instructions, image_path, measure_
     )
     conn.commit()
     conn.close()
+
+
+def save_workout_template(name, description, equipment_needed, phase_rest_seconds):
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute(
+        "INSERT INTO workout_templates (name, description, equipment_needed, phase_rest_seconds) VALUES (?, ?, ?, ?)",
+        (name, description, equipment_needed, phase_rest_seconds),
+    )
+    workout_id = cursor.lastrowid
+    conn.commit()
+    conn.close()
+    return workout_id
+
+
+def update_workout_template(workout_id, name, description, equipment_needed, phase_rest_seconds):
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute(
+        "UPDATE workout_templates SET name = ?, description = ?, equipment_needed = ?, phase_rest_seconds = ? WHERE id = ?",
+        (name, description, equipment_needed, phase_rest_seconds, workout_id),
+    )
+    conn.commit()
+    conn.close()
+
+
+def get_workout_templates():
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute(
+        "SELECT id, name, description, equipment_needed, phase_rest_seconds FROM workout_templates ORDER BY name ASC"
+    )
+    rows = cursor.fetchall()
+    conn.close()
+    return rows
+
+
+def get_workout_template_by_id(workout_id):
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute(
+        "SELECT id, name, description, equipment_needed, phase_rest_seconds FROM workout_templates WHERE id = ?",
+        (workout_id,),
+    )
+    row = cursor.fetchone()
+    conn.close()
+    return row
+
+
+def delete_workout_phases_for_template(workout_id):
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("PRAGMA foreign_keys = ON")
+    cursor.execute("DELETE FROM workout_phases WHERE workout_template_id = ?", (workout_id,))
+    conn.commit()
+    conn.close()
+
+
+def save_workout_phase(workout_id, phase_name, description, repeat_count, rest_between_exercises_seconds):
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("PRAGMA foreign_keys = ON")
+    cursor.execute(
+        "INSERT INTO workout_phases (workout_template_id, phase_name, description, repeat_count, rest_between_exercises_seconds) VALUES (?, ?, ?, ?, ?)",
+        (workout_id, phase_name, description, repeat_count, rest_between_exercises_seconds),
+    )
+    phase_id = cursor.lastrowid
+    conn.commit()
+    conn.close()
+    return phase_id
+
+
+def get_workout_phases_for_template(workout_id):
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute(
+        "SELECT id, workout_template_id, phase_name, description, repeat_count, rest_between_exercises_seconds FROM workout_phases WHERE workout_template_id = ? ORDER BY id ASC",
+        (workout_id,),
+    )
+    rows = cursor.fetchall()
+    conn.close()
+    return rows
+
+
+def save_workout_phase_exercise(phase_id, exercise_id, display_order):
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute(
+        "INSERT INTO workout_phase_exercises (phase_id, exercise_id, display_order) VALUES (?, ?, ?)",
+        (phase_id, exercise_id, display_order),
+    )
+    conn.commit()
+    conn.close()
+
+
+def get_workout_phase_exercises_for_phase(phase_id):
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute(
+        "SELECT id, phase_id, exercise_id, display_order FROM workout_phase_exercises WHERE phase_id = ? ORDER BY display_order ASC",
+        (phase_id,),
+    )
+    rows = cursor.fetchall()
+    conn.close()
+    return rows
 
 
 def get_exercises():
