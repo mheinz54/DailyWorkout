@@ -18,6 +18,7 @@ from src.database import init_db, save_workout_record, get_file_for_day
 from src.schedule_dialog import ScheduleDialog
 from src.workout_record_dialog import WorkoutRecordDialog
 from src.workout_history_dialog import WorkoutHistoryDialog
+from src.exercise_builder_dialog import ExerciseBuilderDialog
 
 
 class WorkoutViewerApp(QMainWindow):
@@ -65,6 +66,15 @@ class WorkoutViewerApp(QMainWindow):
         """)
         self.history_btn.clicked.connect(self.open_history_view)
         left_btn_layout.addWidget(self.history_btn)
+
+        self.exercise_builder_btn = QPushButton("🏋️ Exercise Builder")
+        self.exercise_builder_btn.setFont(QFont("Arial", 11, QFont.Weight.Bold))
+        self.exercise_builder_btn.setStyleSheet("""
+            QPushButton { background-color: #ff7b00; color: white; border-radius: 4px; padding: 6px 12px; margin-left: 5px; }
+            QPushButton:hover { background-color: #cc5d00; }
+        """)
+        self.exercise_builder_btn.clicked.connect(self.open_exercise_builder)
+        left_btn_layout.addWidget(self.exercise_builder_btn)
         top_layout.addLayout(left_btn_layout)
 
         top_layout.addStretch()
@@ -198,6 +208,10 @@ class WorkoutViewerApp(QMainWindow):
 
     def open_history_view(self):
         dialog = WorkoutHistoryDialog(self)
+        dialog.exec()
+
+    def open_exercise_builder(self):
+        dialog = ExerciseBuilderDialog(self)
         dialog.exec()
 
 

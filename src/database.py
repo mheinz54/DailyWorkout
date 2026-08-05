@@ -25,6 +25,20 @@ def init_db():
             duration_seconds INTEGER NOT NULL
         )
     """)
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS exercises (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            instructions TEXT NOT NULL,
+            image_path TEXT,
+            measure_type TEXT NOT NULL,
+            measure_value INTEGER,
+            duration_seconds INTEGER,
+            alternates_sides INTEGER NOT NULL DEFAULT 0,
+            side_switch_seconds INTEGER NOT NULL DEFAULT 0,
+            muscle_groups TEXT
+        )
+    """)
     days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
     for day in days:
         cursor.execute("INSERT OR IGNORE INTO schedule (day_name, file_path) VALUES (?, ?)", (day, ""))
@@ -100,3 +114,86 @@ def save_file_for_day(day_name, file_path):
     cursor.execute("UPDATE schedule SET file_path = ? WHERE day_name = ?", (file_path, day_name))
     conn.commit()
     conn.close()
+
+
+def save_exercise_record(name, instructions, image_path, measure_type, measure_value, duration_seconds, alternates_sides, side_switch_seconds, muscle_groups):
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute(
+        """
+        INSERT INTO exercises (
+            name,
+            instructions,
+            image_path,
+            measure_type,
+            measure_value,
+            duration_seconds,
+            alternates_sides,
+            side_switch_seconds,
+            muscle_groups
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        (
+            name,
+            instructions,
+            image_path,
+            measure_type,
+            measure_value,
+            duration_seconds,
+            alternates_sides,
+            side_switch_seconds,
+            muscle_groups,
+        ),
+    )
+    conn.commit()
+    conn.close()
+
+
+def get_exercise_by_id(exercise_id):
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute(
+        "SELECT id, name, instructions, image_path, measure_type, measure_value, duration_seconds, alternates_sides, side_switch_seconds, muscle_groups FROM exercises WHERE id = ?",
+        (exercise_id,),
+    )
+    row = cursor.fetchone()
+    conn.close()
+    return row
+
+
+def update_exercise_record(exercise_id, name, instructions, image_path, measure_type, measure_value, duration_seconds, alternates_sides, side_switch_seconds, muscle_groups):
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute(
+        """
+        UPDATE exercises
+        SET name = ?, instructions = ?, image_path = ?, measure_type = ?, measure_value = ?,
+            duration_seconds = ?, alternates_sides = ?, side_switch_seconds = ?, muscle_groups = ?
+        WHERE id = ?
+        """,
+        (
+            name,
+            instructions,
+            image_path,
+            measure_type,
+            measure_value,
+            duration_seconds,
+            alternates_sides,
+            side_switch_seconds,
+            muscle_groups,
+            exercise_id,
+        ),
+    )
+    conn.commit()
+    conn.close()
+
+
+def get_exercises():
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute(
+        "SELECT id, name, instructions, image_path, measure_type, measure_value, duration_seconds, alternates_sides, side_switch_seconds, muscle_groups FROM exercises ORDER BY name ASC"
+    )
+    rows = cursor.fetchall()
+    conn.close()
+    return rows
