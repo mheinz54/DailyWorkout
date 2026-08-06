@@ -1,0 +1,38 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Format Code",
+      "type": "shell",
+      "command": "python3 -m black . && python3 -m isort .",
+      "group": "build",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false
+      }
+    },
+    {
+      "label": "Check Formatting",
+      "type": "shell",
+      "command": "python3 -m black --check . && python3 -m isort --check-only .",
+      "group": "test",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false
+      }
+    },
+    {
+      "label": "Lint",
+      "type": "shell",
+      "command": "python3 -m ruff check .",
+      "group": "test",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false
+      }
+    }
+  ]
+}

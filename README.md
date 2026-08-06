@@ -1,6 +1,6 @@
 # Daily Workout Viewer
 
-A small PyQt6 desktop app for viewing scheduled markdown workout routines, tracking a stopwatch, and recording completed workouts to a local SQLite database.
+A small PyQt6 desktop app for viewing scheduled saved workouts, tracking a stopwatch, and recording completed workouts to a local SQLite database.
 
 ## Project layout
 
@@ -52,10 +52,45 @@ If you are already in the project directory, this is enough:
 python3 src/main.py
 ```
 
+## Formatting and linting
+
+This project uses `black`, `isort`, and `ruff`. Configuration lives in `pyproject.toml`.
+
+### Run locally
+
+```bash
+python3 -m black .
+python3 -m isort .
+python3 -m ruff check .
+```
+
+### VS Code tasks
+
+- `Format Code` — formats with Black and isort
+- `Check Formatting` — verifies Black/isort formatting
+- `Lint` — runs Ruff
+
+### GitHub Actions
+
+A GitHub Actions workflow is configured at `.github/workflows/python-ci.yml` to run formatting and lint checks on push and pull requests to `main`.
+
+### Changing rules
+
+Update formatting and lint rules in `pyproject.toml`:
+
+- `tool.black.line-length`
+- `tool.isort.profile`
+- `tool.isort.line_length`
+- `tool.ruff.line-length`
+- `tool.ruff.select`
+- `tool.ruff.extend-ignore`
+
+Then re-run the tasks.
+
 ## How it works
 
-- Use the Select Markdown File button to load a workout routine.
-- Use Manage Schedule to assign markdown workout files to each weekday.
+- Use the workout dropdown to select a saved workout template.
+- Use Manage Schedule to assign saved workouts to days.
 - Use the Start/Stop button to run the stopwatch.
 - When you stop the timer, you can record the workout with the workout name, date, and duration.
 - Use Workout History to review saved records grouped by workout, edit them, delete them, and see a calendar of recorded dates.
