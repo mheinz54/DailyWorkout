@@ -5,7 +5,7 @@ from pathlib import Path
 if __package__ in {None, ""}:
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from PyQt6.QtCore import QTimer
+from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtGui import QFont
 from PyQt6.QtWidgets import (
     QApplication,
@@ -23,11 +23,13 @@ from PyQt6.QtWidgets import (
 from src.database import (
     get_exercise_by_id,
     get_schedule_for_day,
+    get_user_setting,
     get_workout_phase_exercises_for_phase,
     get_workout_phases_for_template,
     get_workout_template_by_id,
     get_workout_templates,
     init_db,
+    save_user_setting,
     save_workout_record,
 )
 from src.exercise_builder_dialog import ExerciseBuilderDialog
@@ -45,6 +47,7 @@ class WorkoutViewerApp(QMainWindow):
 
         self.timer_seconds = 0
         self.current_workout_name = ""
+        self.markdown_font_size = self.load_saved_font_size()
         self.stopwatch = QTimer()
         self.stopwatch.timeout.connect(self.update_timer_display)
 
@@ -111,14 +114,19 @@ class WorkoutViewerApp(QMainWindow):
         top_layout.addLayout(left_btn_layout)
 
         top_layout.addStretch()
+        main_layout.addLayout(top_layout)
 
-        right_timer_layout = QHBoxLayout()
-        self.timer_label = QLabel("00:00")
-        self.timer_label.setFont(QFont("Courier New", 16, QFont.Weight.Bold))
-        self.timer_label.setStyleSheet(
-            "color: #333; background-color: #e9ecef; padding: 4px 10px; border-radius: 4px; border: 1px solid #ced4da; margin-right: 8px;"
+        status_layout = QHBoxLayout()
+        self.file_label = QLabel("No workout selected")
+        self.file_label.setFont(QFont("Arial", 10, QFont.Weight.Normal))
+        self.file_label.setStyleSheet(
+            "color: gray; font-style: italic; margin-top: 4px; margin-bottom: 8px; margin-left: 2px;"
         )
-        right_timer_layout.addWidget(self.timer_label)
+        status_layout.addWidget(self.file_label)
+
+        self.timer_control_layout = QHBoxLayout()
+        self.timer_control_layout.setSpacing(6)
+        self.timer_control_layout.setContentsMargins(0, 0, 0, 0)
 
         self.start_stop_btn = QPushButton("Start")
         self.start_stop_btn.setFont(QFont("Arial", 11, QFont.Weight.Bold))
@@ -129,30 +137,48 @@ class WorkoutViewerApp(QMainWindow):
         """
         )
         self.start_stop_btn.clicked.connect(self.toggle_timer)
-        right_timer_layout.addWidget(self.start_stop_btn)
+        self.timer_control_layout.addWidget(self.start_stop_btn)
+
+        self.timer_label = QLabel("00:00")
+        self.timer_label.setFont(QFont("Courier New", 16, QFont.Weight.Bold))
+        self.timer_label.setStyleSheet(
+            "color: #333; background-color: #e9ecef; padding: 4px 10px; border-radius: 4px; border: 1px solid #ced4da;"
+        )
+        self.timer_control_layout.addWidget(self.timer_label)
 
         self.reset_btn = QPushButton("Reset")
         self.reset_btn.setFont(QFont("Arial", 11, QFont.Weight.Bold))
         self.reset_btn.setStyleSheet(
             """
-            QPushButton { background-color: #dc3545; color: white; border-radius: 4px; padding: 6px 14px; margin-left: 4px; }
+            QPushButton { background-color: #dc3545; color: white; border-radius: 4px; padding: 6px 14px; }
             QPushButton:hover { background-color: #bd2130; }
         """
         )
         self.reset_btn.clicked.connect(self.reset_timer)
-        right_timer_layout.addWidget(self.reset_btn)
-        top_layout.addLayout(right_timer_layout)
+        self.timer_control_layout.addWidget(self.reset_btn)
 
-        main_layout.addLayout(top_layout)
+        status_layout.addLayout(self.timer_control_layout)
+        status_layout.addStretch()
 
-        self.file_label = QLabel("No workout selected")
-        self.file_label.setFont(QFont("Arial", 10, QFont.Weight.Normal))
-        self.file_label.setStyleSheet(
-            "color: gray; font-style: italic; margin-top: 4px; margin-bottom: 8px; margin-left: 2px;"
-        )
-        main_layout.addWidget(self.file_label)
+        self.decrease_font_btn = QPushButton("A-")
+        self.decrease_font_btn.setFixedSize(40, 30)
+        self.decrease_font_btn.clicked.connect(self.decrease_font_size)
+        status_layout.addWidget(self.decrease_font_btn)
+
+        self.font_size_label = QLabel(f"{self.markdown_font_size}px")
+        self.font_size_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.font_size_label.setFixedWidth(60)
+        status_layout.addWidget(self.font_size_label)
+
+        self.increase_font_btn = QPushButton("A+")
+        self.increase_font_btn.setFixedSize(40, 30)
+        self.increase_font_btn.clicked.connect(self.increase_font_size)
+        status_layout.addWidget(self.increase_font_btn)
+
+        main_layout.addLayout(status_layout)
 
         self.display_area = QTextBrowser()
+        self.display_area.setStyleSheet(f"font-size: {self.markdown_font_size}px;")
         main_layout.addWidget(self.display_area)
 
         self.check_and_load_today_workout()
@@ -207,6 +233,30 @@ class WorkoutViewerApp(QMainWindow):
         minutes = self.timer_seconds // 60
         seconds = self.timer_seconds % 60
         self.timer_label.setText(f"{minutes:02d}:{seconds:02d}")
+
+    def load_saved_font_size(self):
+        saved_value = get_user_setting("markdown_font_size")
+        try:
+            font_size = int(saved_value)
+        except (TypeError, ValueError):
+            font_size = 14
+        return font_size
+
+    def increase_font_size(self):
+        self.markdown_font_size += 1
+        self.font_size_label.setText(f"{self.markdown_font_size}px")
+        self.apply_markdown_font_size()
+        save_user_setting("markdown_font_size", self.markdown_font_size)
+
+    def decrease_font_size(self):
+        if self.markdown_font_size > 8:
+            self.markdown_font_size -= 1
+            self.font_size_label.setText(f"{self.markdown_font_size}px")
+            self.apply_markdown_font_size()
+            save_user_setting("markdown_font_size", self.markdown_font_size)
+
+    def apply_markdown_font_size(self):
+        self.display_area.setStyleSheet(f"font-size: {self.markdown_font_size}px;")
 
     def check_and_load_today_workout(self):
         today_name = datetime.now().strftime("%A")
@@ -292,7 +342,7 @@ class WorkoutViewerApp(QMainWindow):
                     continue
 
                 exercise_name = exercise[1]
-                instructions = exercise[2]
+                instructions = exercise[2].replace("\n", "<br/> - ") if exercise[2] else ""
                 image_path = exercise[3]
                 measure_type = exercise[4]
                 measure_value = exercise[5]
@@ -301,8 +351,8 @@ class WorkoutViewerApp(QMainWindow):
 
                 lines.append(f"#### {order_index}. {exercise_name}")
                 if instructions:
-                    lines.append(f"*   **Directions:** {instructions}")
-                if measure_type and measure_value is not None:
+                    lines.append(f"*   **Directions:** <br/> - {instructions}")
+                if measure_type == "Reps" and measure_value is not None:
                     lines.append(f"*   **Reps/Time:** {measure_value} {measure_type}")
                 elif duration_seconds:
                     lines.append(f"*   **Reps/Time:** {duration_seconds} seconds")

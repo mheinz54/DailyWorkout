@@ -86,6 +86,14 @@ def init_db():
         )
     """
     )
+    cursor.execute(
+        """
+        CREATE TABLE IF NOT EXISTS user_settings (
+            name TEXT PRIMARY KEY,
+            value TEXT
+        )
+    """
+    )
     days = [
         "Monday",
         "Tuesday",
@@ -177,6 +185,28 @@ def save_schedule_for_day(day_name, file_path="", workout_template_id=None):
     cursor.execute(
         "UPDATE schedule SET file_path = ?, workout_template_id = ? WHERE day_name = ?",
         (file_path, workout_template_id, day_name),
+    )
+    conn.commit()
+    conn.close()
+
+
+def get_user_setting(name, default=None):
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("SELECT value FROM user_settings WHERE name = ?", (name,))
+    row = cursor.fetchone()
+    conn.close()
+    if row is None:
+        return default
+    return row[0]
+
+
+def save_user_setting(name, value):
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute(
+        "INSERT INTO user_settings (name, value) VALUES (?, ?) ON CONFLICT(name) DO UPDATE SET value = excluded.value",
+        (name, str(value)),
     )
     conn.commit()
     conn.close()
