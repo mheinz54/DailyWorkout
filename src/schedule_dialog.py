@@ -1,23 +1,22 @@
-import os
-
-from PyQt6.QtWidgets import QDialog, QVBoxLayout, QGridLayout, QLabel, QPushButton, QFileDialog
+from PyQt6.QtWidgets import QDialog, QVBoxLayout, QGridLayout, QLabel, QPushButton, QComboBox
 from PyQt6.QtGui import QFont
 from PyQt6.QtCore import Qt
 
-from src.database import get_file_for_day, save_file_for_day
+from src.database import get_schedule_for_day, save_schedule_for_day, get_workout_templates
 
 
 class ScheduleDialog(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setWindowTitle("Assign Workouts to Days")
-        self.setMinimumWidth(600)
+        self.setWindowTitle("Assign Saved Workouts to Days")
+        self.setMinimumWidth(660)
 
         layout = QVBoxLayout(self)
         grid = QGridLayout()
         layout.addLayout(grid)
 
-        self.file_inputs = {}
+        self.schedule_inputs = {}
+        self.workout_templates = get_workout_templates()
         days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
 
         for row, day in enumerate(days):
@@ -25,39 +24,39 @@ class ScheduleDialog(QDialog):
             day_label.setFont(QFont("Arial", 11))
             grid.addWidget(day_label, row, 0)
 
-            current_path = get_file_for_day(day)
-            display_text = os.path.basename(current_path) if current_path else "No file assigned"
+            schedule_path, workout_template_id = get_schedule_for_day(day)
 
-            path_label = QLabel(display_text)
-            path_label.setStyleSheet("color: #555; font-style: italic;")
-            grid.addWidget(path_label, row, 1)
+            workout_combo = QComboBox()
+            workout_combo.addItem("Select saved workout", -1)
+            for template_id, name, *_ in self.workout_templates:
+                workout_combo.addItem(name, template_id)
 
-            self.file_inputs[day] = (current_path, path_label)
-
-            browse_btn = QPushButton("Browse...")
-            browse_btn.clicked.connect(lambda checked, d=day: self.browse_file(d))
-            grid.addWidget(browse_btn, row, 2)
+            workout_combo.blockSignals(True)
+            if workout_template_id is not None:
+                index = workout_combo.findData(workout_template_id)
+                if index != -1:
+                    workout_combo.setCurrentIndex(index)
+            workout_combo.blockSignals(False)
+            workout_combo.currentIndexChanged.connect(lambda _, d=day, c=workout_combo: self.select_workout(d, c))
+            grid.addWidget(workout_combo, row, 1)
 
             clear_btn = QPushButton("Clear")
-            clear_btn.clicked.connect(lambda checked, d=day: self.clear_file(d))
-            grid.addWidget(clear_btn, row, 3)
+            clear_btn.clicked.connect(lambda checked, d=day, c=workout_combo: self.clear_selection(d, c))
+            grid.addWidget(clear_btn, row, 2)
+
+            self.schedule_inputs[day] = workout_combo
 
         close_btn = QPushButton("Done")
         close_btn.clicked.connect(self.accept)
         layout.addWidget(close_btn, alignment=Qt.AlignmentFlag.AlignRight)
 
-    def browse_file(self, day):
-        file_path, _ = QFileDialog.getOpenFileName(
-            self, f"Select Workout for {day}", "", "Markdown Files (*.md *.markdown);;All Files (*)"
-        )
-        if file_path:
-            save_file_for_day(day, file_path)
-            _, label = self.file_inputs[day]
-            self.file_inputs[day] = (file_path, label)
-            label.setText(os.path.basename(file_path))
+    def select_workout(self, day, combo):
+        workout_id = combo.currentData()
+        if workout_id in (None, -1):
+            save_schedule_for_day(day, "", None)
+        else:
+            save_schedule_for_day(day, "", workout_id)
 
-    def clear_file(self, day):
-        save_file_for_day(day, "")
-        _, label = self.file_inputs[day]
-        self.file_inputs[day] = ("", label)
-        label.setText("No file assigned")
+    def clear_selection(self, day, combo):
+        combo.setCurrentIndex(0)
+        save_schedule_for_day(day, "", None)

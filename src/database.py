@@ -14,9 +14,14 @@ def init_db():
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS schedule (
             day_name TEXT PRIMARY KEY,
-            file_path TEXT
+            file_path TEXT,
+            workout_template_id INTEGER
         )
     """)
+    cursor.execute("PRAGMA table_info(schedule)")
+    schedule_columns = [row[1] for row in cursor.fetchall()]
+    if "workout_template_id" not in schedule_columns:
+        cursor.execute("ALTER TABLE schedule ADD COLUMN workout_template_id INTEGER")
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS workout_history (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -71,7 +76,7 @@ def init_db():
     """)
     days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
     for day in days:
-        cursor.execute("INSERT OR IGNORE INTO schedule (day_name, file_path) VALUES (?, ?)", (day, ""))
+        cursor.execute("INSERT OR IGNORE INTO schedule (day_name, file_path, workout_template_id) VALUES (?, ?, ?)", (day, "", None))
     conn.commit()
     conn.close()
 
@@ -129,19 +134,24 @@ def update_workout_record(record_id, workout_name, workout_date, duration_second
     conn.close()
 
 
-def get_file_for_day(day_name):
+def get_schedule_for_day(day_name):
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
-    cursor.execute("SELECT file_path FROM schedule WHERE day_name = ?", (day_name,))
+    cursor.execute("SELECT file_path, workout_template_id FROM schedule WHERE day_name = ?", (day_name,))
     row = cursor.fetchone()
     conn.close()
-    return row[0] if row else ""
+    if row:
+        return row[0], row[1]
+    return "", None
 
 
-def save_file_for_day(day_name, file_path):
+def save_schedule_for_day(day_name, file_path="", workout_template_id=None):
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
-    cursor.execute("UPDATE schedule SET file_path = ? WHERE day_name = ?", (file_path, day_name))
+    cursor.execute(
+        "UPDATE schedule SET file_path = ?, workout_template_id = ? WHERE day_name = ?",
+        (file_path, workout_template_id, day_name),
+    )
     conn.commit()
     conn.close()
 

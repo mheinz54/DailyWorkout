@@ -9,7 +9,7 @@ if __package__ in {None, ""}:
 from PyQt6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout,
     QHBoxLayout, QPushButton, QLabel, QTextBrowser,
-    QFileDialog, QMessageBox, QDialog, QComboBox,
+    QMessageBox, QDialog, QComboBox,
 )
 from PyQt6.QtGui import QFont
 from PyQt6.QtCore import Qt, QTimer
@@ -17,7 +17,7 @@ from PyQt6.QtCore import Qt, QTimer
 from src.database import (
     init_db,
     save_workout_record,
-    get_file_for_day,
+    get_schedule_for_day,
     get_workout_templates,
     get_workout_template_by_id,
     get_workout_phases_for_template,
@@ -38,7 +38,7 @@ class WorkoutViewerApp(QMainWindow):
         self.setGeometry(100, 100, 850, 650)
 
         self.timer_seconds = 0
-        self.current_workout_path = ""
+        self.current_workout_name = ""
         self.stopwatch = QTimer()
         self.stopwatch.timeout.connect(self.update_timer_display)
 
@@ -50,14 +50,6 @@ class WorkoutViewerApp(QMainWindow):
         top_layout = QHBoxLayout()
 
         left_btn_layout = QHBoxLayout()
-        self.select_btn = QPushButton("📁 Select Markdown File")
-        self.select_btn.setFont(QFont("Arial", 11, QFont.Weight.Bold))
-        self.select_btn.setStyleSheet("""
-            QPushButton { background-color: #007acc; color: white; border-radius: 4px; padding: 6px 12px; }
-            QPushButton:hover { background-color: #005999; }
-        """)
-        self.select_btn.clicked.connect(self.load_markdown_file)
-        left_btn_layout.addWidget(self.select_btn)
 
         self.workout_selector = QComboBox()
         self.workout_selector.setMinimumWidth(240)
@@ -133,7 +125,7 @@ class WorkoutViewerApp(QMainWindow):
 
         main_layout.addLayout(top_layout)
 
-        self.file_label = QLabel("No file selected")
+        self.file_label = QLabel("No workout selected")
         self.file_label.setFont(QFont("Arial", 10, QFont.Weight.Normal))
         self.file_label.setStyleSheet("color: gray; font-style: italic; margin-top: 4px; margin-bottom: 8px; margin-left: 2px;")
         main_layout.addWidget(self.file_label)
@@ -164,7 +156,7 @@ class WorkoutViewerApp(QMainWindow):
         """)
 
     def prompt_record_workout(self):
-        workout_name = os.path.basename(self.current_workout_path) if self.current_workout_path else "Unknown Workout"
+        workout_name = self.current_workout_name or "Unknown Workout"
         dialog = WorkoutRecordDialog(self, workout_name=workout_name, total_seconds=self.timer_seconds)
         response = dialog.exec()
 
@@ -190,34 +182,27 @@ class WorkoutViewerApp(QMainWindow):
 
     def check_and_load_today_workout(self):
         today_name = datetime.now().strftime("%A")
-        saved_path = get_file_for_day(today_name)
+        _, workout_template_id = get_schedule_for_day(today_name)
 
-        if saved_path and os.path.exists(saved_path):
-            self.current_workout_path = saved_path
-            self.render_markdown(saved_path)
-            self.file_label.setText(f"Loaded today's scheduled file ({today_name}): {os.path.abspath(saved_path)}")
-            self.file_label.setStyleSheet("color: #007acc; font-style: normal; margin-top: 4px; margin-bottom: 8px; margin-left: 2px;")
-        else:
-            self.current_workout_path = ""
-            self.display_area.setMarkdown(
-                f"<h1>Welcome</h1><p>No workout file is assigned for <b>{today_name}</b> yet.</p>"
-                "<p>Click <b>Manage Schedule</b> above to link your `.md` files to days of the week.</p>"
-            )
+        if workout_template_id is not None:
+            template = get_workout_template_by_id(workout_template_id)
+            if template:
+                self.current_workout_name = template[1]
+                markdown_content = self.generate_workout_markdown(workout_template_id, template)
+                self.display_area.setMarkdown(markdown_content)
+                self.file_label.setText(f"Loaded today's scheduled workout ({today_name}): {template[1]}")
+                self.file_label.setStyleSheet("color: #007acc; font-style: normal; margin-top: 4px; margin-bottom: 8px; margin-left: 2px;")
+                return
 
-    def load_markdown_file(self):
-        file_path, _ = QFileDialog.getOpenFileName(
-            self, "Select Markdown File", "", "Markdown Files (*.md *.markdown);;Text Files (*.txt);;All Files (*)"
+        self.current_workout_name = ""
+        self.display_area.setMarkdown(
+            f"<h1>Welcome</h1><p>No workout is assigned for <b>{today_name}</b> yet.</p>"
+            "<p>Click <b>Manage Schedule</b> above to link a saved workout to a day of the week.</p>"
         )
-        if file_path:
-            self.current_workout_path = file_path
-            self.render_markdown(file_path)
-            self.file_label.setText(os.path.abspath(file_path))
-            self.file_label.setStyleSheet("color: green; font-style: normal; margin-top: 4px; margin-bottom: 8px; margin-left: 2px;")
 
     def load_selected_workout_preview(self, index):
         workout_id = self.workout_selector.itemData(index)
         if workout_id in (None, -1):
-            self.current_workout_path = ""
             self.display_area.setMarkdown(
                 "<h1>Workout Preview</h1><p>Select a saved workout from the dropdown to generate and display its markdown preview.</p>"
             )
@@ -229,7 +214,6 @@ class WorkoutViewerApp(QMainWindow):
         if not template:
             return
 
-        self.current_workout_path = ""
         markdown_content = self.generate_workout_markdown(workout_id, template)
         self.display_area.setMarkdown(markdown_content)
         self.file_label.setText(f"Previewing saved workout template: {template[1]}")
@@ -283,9 +267,8 @@ class WorkoutViewerApp(QMainWindow):
                     lines.append(f"*   **Muscle Groups:** {muscle_groups}")
                 if image_path:
                     image_uri = self._resolve_preview_image_uri(image_path)
-                    # lines.append(f"*   ![Visual Hint]({image_uri})")
-                    lines.append(f"\n<img src=\"{image_uri}\" width=\"350\"  />")
-                lines.append("")
+                    lines.append(f"<br/><img src=\"{image_uri}\" width=\"350\"  />")
+                lines.append("<br/>")
 
         return "\n".join(lines)
 
@@ -294,20 +277,6 @@ class WorkoutViewerApp(QMainWindow):
         if not candidate.is_absolute():
             candidate = (Path(__file__).resolve().parents[1] / candidate).resolve()
         return candidate.as_uri() if candidate.exists() else str(candidate)
-
-    def render_markdown(self, path):
-        try:
-            with open(path, "r", encoding="utf-8") as file:
-                md_content = file.read()
-
-            markdown_dir = Path(path).resolve().parent
-            image_dir_uri = (markdown_dir / "images").resolve().as_uri() + "/"
-            md_content = md_content.replace('src="images/', f'src="{image_dir_uri}')
-            md_content = md_content.replace('(images/', f'({image_dir_uri}')
-
-            self.display_area.setMarkdown(md_content)
-        except Exception as e:
-            QMessageBox.critical(self, "Error", f"Could not read or parse file:\n{str(e)}")
 
     def open_schedule_manager(self):
         dialog = ScheduleDialog(self)
