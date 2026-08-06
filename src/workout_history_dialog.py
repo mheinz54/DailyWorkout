@@ -1,11 +1,18 @@
+from PyQt6.QtCore import QDate, Qt
+from PyQt6.QtGui import QBrush, QFont, QTextCharFormat
 from PyQt6.QtWidgets import (
-    QDialog, QVBoxLayout, QScrollArea, QWidget, QVBoxLayout as QVBoxLayoutAlias,
-    QGroupBox, QPushButton, QLabel, QMessageBox, QCalendarWidget
+    QCalendarWidget,
+    QDialog,
+    QGroupBox,
+    QLabel,
+    QMessageBox,
+    QPushButton,
+    QScrollArea,
+    QVBoxLayout,
+    QWidget,
 )
-from PyQt6.QtGui import QFont, QBrush, QTextCharFormat
-from PyQt6.QtCore import Qt, QDate
 
-from src.database import get_workout_history, get_workout_record, delete_workout_record
+from src.database import delete_workout_record, get_workout_history, get_workout_record
 from src.workout_history_edit_dialog import WorkoutHistoryEditDialog
 
 
@@ -19,15 +26,17 @@ class WorkoutHistoryDialog(QDialog):
         self.scroll_area = QScrollArea()
         self.scroll_area.setWidgetResizable(True)
         self.scroll_content = QWidget()
-        self.history_layout = QVBoxLayoutAlias(self.scroll_content)
+        self.history_layout = QVBoxLayout(self.scroll_content)
         self.scroll_area.setWidget(self.scroll_content)
         self.layout.addWidget(self.scroll_area)
 
         self.calendar_container = QWidget()
-        self.calendar_layout = QVBoxLayoutAlias(self.calendar_container)
+        self.calendar_layout = QVBoxLayout(self.calendar_container)
         self.calendar = QCalendarWidget()
         self.calendar.setGridVisible(True)
-        self.calendar.setHorizontalHeaderFormat(QCalendarWidget.HorizontalHeaderFormat.ShortDayNames)
+        self.calendar.setHorizontalHeaderFormat(
+            QCalendarWidget.HorizontalHeaderFormat.ShortDayNames
+        )
         self.calendar_layout.addWidget(self.calendar)
         self.layout.addWidget(self.calendar_container)
 
@@ -62,10 +71,10 @@ class WorkoutHistoryDialog(QDialog):
 
         for workout_name, workout_entries in grouped_records.items():
             group = QGroupBox(f"{workout_name}")
-            group_layout = QVBoxLayoutAlias(group)
+            group_layout = QVBoxLayout(group)
 
             for record_id, _, workout_date, duration_seconds in workout_entries:
-                entry_layout = QVBoxLayoutAlias()
+                entry_layout = QVBoxLayout()
                 duration_minutes = duration_seconds // 60
                 duration_seconds_remaining = duration_seconds % 60
                 duration_text = f"{duration_minutes:02d}:{duration_seconds_remaining:02d}"
@@ -73,13 +82,17 @@ class WorkoutHistoryDialog(QDialog):
                 entry_label = QLabel(f"{workout_date} • {duration_text}")
                 entry_layout.addWidget(entry_label)
 
-                actions_layout = QVBoxLayoutAlias()
+                actions_layout = QVBoxLayout()
                 edit_btn = QPushButton("Edit")
-                edit_btn.clicked.connect(lambda checked, record_id=record_id: self.edit_record(record_id))
+                edit_btn.clicked.connect(
+                    lambda checked, record_id=record_id: self.edit_record(record_id)
+                )
                 actions_layout.addWidget(edit_btn)
 
                 delete_btn = QPushButton("Delete")
-                delete_btn.clicked.connect(lambda checked, record_id=record_id: self.delete_record(record_id))
+                delete_btn.clicked.connect(
+                    lambda checked, record_id=record_id: self.delete_record(record_id)
+                )
                 actions_layout.addWidget(delete_btn)
 
                 group_layout.addLayout(entry_layout)

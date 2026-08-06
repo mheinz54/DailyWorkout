@@ -11,26 +11,31 @@ DATA_DIR.mkdir(parents=True, exist_ok=True)
 def init_db():
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
-    cursor.execute("""
+    cursor.execute(
+        """
         CREATE TABLE IF NOT EXISTS schedule (
             day_name TEXT PRIMARY KEY,
             file_path TEXT,
             workout_template_id INTEGER
         )
-    """)
+    """
+    )
     cursor.execute("PRAGMA table_info(schedule)")
     schedule_columns = [row[1] for row in cursor.fetchall()]
     if "workout_template_id" not in schedule_columns:
         cursor.execute("ALTER TABLE schedule ADD COLUMN workout_template_id INTEGER")
-    cursor.execute("""
+    cursor.execute(
+        """
         CREATE TABLE IF NOT EXISTS workout_history (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             workout_name TEXT NOT NULL,
             workout_date TEXT NOT NULL,
             duration_seconds INTEGER NOT NULL
         )
-    """)
-    cursor.execute("""
+    """
+    )
+    cursor.execute(
+        """
         CREATE TABLE IF NOT EXISTS exercises (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT NOT NULL,
@@ -43,8 +48,10 @@ def init_db():
             side_switch_seconds INTEGER NOT NULL DEFAULT 0,
             muscle_groups TEXT
         )
-    """)
-    cursor.execute("""
+    """
+    )
+    cursor.execute(
+        """
         CREATE TABLE IF NOT EXISTS workout_templates (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT NOT NULL,
@@ -52,8 +59,10 @@ def init_db():
             equipment_needed TEXT,
             phase_rest_seconds INTEGER NOT NULL DEFAULT 0
         )
-    """)
-    cursor.execute("""
+    """
+    )
+    cursor.execute(
+        """
         CREATE TABLE IF NOT EXISTS workout_phases (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             workout_template_id INTEGER NOT NULL,
@@ -63,8 +72,10 @@ def init_db():
             rest_between_exercises_seconds INTEGER NOT NULL DEFAULT 0,
             FOREIGN KEY (workout_template_id) REFERENCES workout_templates (id) ON DELETE CASCADE
         )
-    """)
-    cursor.execute("""
+    """
+    )
+    cursor.execute(
+        """
         CREATE TABLE IF NOT EXISTS workout_phase_exercises (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             phase_id INTEGER NOT NULL,
@@ -73,10 +84,22 @@ def init_db():
             FOREIGN KEY (phase_id) REFERENCES workout_phases (id) ON DELETE CASCADE,
             FOREIGN KEY (exercise_id) REFERENCES exercises (id) ON DELETE CASCADE
         )
-    """)
-    days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+    """
+    )
+    days = [
+        "Monday",
+        "Tuesday",
+        "Wednesday",
+        "Thursday",
+        "Friday",
+        "Saturday",
+        "Sunday",
+    ]
     for day in days:
-        cursor.execute("INSERT OR IGNORE INTO schedule (day_name, file_path, workout_template_id) VALUES (?, ?, ?)", (day, "", None))
+        cursor.execute(
+            "INSERT OR IGNORE INTO schedule (day_name, file_path, workout_template_id) VALUES (?, ?, ?)",
+            (day, "", None),
+        )
     conn.commit()
     conn.close()
 
@@ -137,7 +160,10 @@ def update_workout_record(record_id, workout_name, workout_date, duration_second
 def get_schedule_for_day(day_name):
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
-    cursor.execute("SELECT file_path, workout_template_id FROM schedule WHERE day_name = ?", (day_name,))
+    cursor.execute(
+        "SELECT file_path, workout_template_id FROM schedule WHERE day_name = ?",
+        (day_name,),
+    )
     row = cursor.fetchone()
     conn.close()
     if row:
@@ -156,7 +182,17 @@ def save_schedule_for_day(day_name, file_path="", workout_template_id=None):
     conn.close()
 
 
-def save_exercise_record(name, instructions, image_path, measure_type, measure_value, duration_seconds, alternates_sides, side_switch_seconds, muscle_groups):
+def save_exercise_record(
+    name,
+    instructions,
+    image_path,
+    measure_type,
+    measure_value,
+    duration_seconds,
+    alternates_sides,
+    side_switch_seconds,
+    muscle_groups,
+):
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     cursor.execute(
@@ -201,7 +237,18 @@ def get_exercise_by_id(exercise_id):
     return row
 
 
-def update_exercise_record(exercise_id, name, instructions, image_path, measure_type, measure_value, duration_seconds, alternates_sides, side_switch_seconds, muscle_groups):
+def update_exercise_record(
+    exercise_id,
+    name,
+    instructions,
+    image_path,
+    measure_type,
+    measure_value,
+    duration_seconds,
+    alternates_sides,
+    side_switch_seconds,
+    muscle_groups,
+):
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     cursor.execute(
@@ -284,13 +331,21 @@ def delete_workout_phases_for_template(workout_id):
     conn.close()
 
 
-def save_workout_phase(workout_id, phase_name, description, repeat_count, rest_between_exercises_seconds):
+def save_workout_phase(
+    workout_id, phase_name, description, repeat_count, rest_between_exercises_seconds
+):
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     cursor.execute("PRAGMA foreign_keys = ON")
     cursor.execute(
         "INSERT INTO workout_phases (workout_template_id, phase_name, description, repeat_count, rest_between_exercises_seconds) VALUES (?, ?, ?, ?, ?)",
-        (workout_id, phase_name, description, repeat_count, rest_between_exercises_seconds),
+        (
+            workout_id,
+            phase_name,
+            description,
+            repeat_count,
+            rest_between_exercises_seconds,
+        ),
     )
     phase_id = cursor.lastrowid
     conn.commit()

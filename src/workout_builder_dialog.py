@@ -1,25 +1,34 @@
-from pathlib import Path
-
-from PyQt6.QtWidgets import (
-    QDialog, QVBoxLayout, QFormLayout, QLineEdit, QPlainTextEdit,
-    QComboBox, QSpinBox, QCheckBox, QPushButton, QLabel,
-    QMessageBox, QHBoxLayout, QDialogButtonBox, QSizePolicy,
-    QWidget, QScrollArea, QGroupBox, QFrame,
-)
-from PyQt6.QtGui import QTextOption
 from PyQt6.QtCore import Qt
+from PyQt6.QtGui import QTextOption
+from PyQt6.QtWidgets import (
+    QComboBox,
+    QDialog,
+    QDialogButtonBox,
+    QFormLayout,
+    QGroupBox,
+    QHBoxLayout,
+    QLabel,
+    QLineEdit,
+    QMessageBox,
+    QPlainTextEdit,
+    QPushButton,
+    QScrollArea,
+    QSpinBox,
+    QVBoxLayout,
+    QWidget,
+)
 
 from src.database import (
+    delete_workout_phases_for_template,
     get_exercises,
-    get_workout_templates,
+    get_workout_phase_exercises_for_phase,
+    get_workout_phases_for_template,
     get_workout_template_by_id,
-    save_workout_template,
-    update_workout_template,
+    get_workout_templates,
     save_workout_phase,
     save_workout_phase_exercise,
-    get_workout_phases_for_template,
-    get_workout_phase_exercises_for_phase,
-    delete_workout_phases_for_template,
+    save_workout_template,
+    update_workout_template,
 )
 
 
@@ -45,7 +54,9 @@ class WorkoutPhaseEditor(QWidget):
         self.phase_description_input.setMinimumWidth(200)
         self.phase_description_input.setLineWrapMode(QPlainTextEdit.LineWrapMode.WidgetWidth)
         self.phase_description_input.setWordWrapMode(QTextOption.WrapMode.WordWrap)
-        self.phase_description_input.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.phase_description_input.setHorizontalScrollBarPolicy(
+            Qt.ScrollBarPolicy.ScrollBarAlwaysOff
+        )
         phase_form.addRow("Phase Description", self.phase_description_input)
 
         self.repeat_count_input = QSpinBox()
@@ -85,7 +96,11 @@ class WorkoutPhaseEditor(QWidget):
     def add_selected_exercise(self):
         exercise_id = self.exercise_combo.currentData()
         if exercise_id in (None, -1):
-            QMessageBox.warning(self, "Select an exercise", "Choose a saved exercise from the dropdown first.")
+            QMessageBox.warning(
+                self,
+                "Select an exercise",
+                "Choose a saved exercise from the dropdown first.",
+            )
             return
 
         self.add_exercise_by_id(exercise_id)
@@ -109,7 +124,11 @@ class WorkoutPhaseEditor(QWidget):
     def remove_exercise_row(self, row_widget, exercise_id):
         self.exercises_layout.removeWidget(row_widget)
         row_widget.deleteLater()
-        self.exercise_entries = [(saved_id, name, existing_row) for saved_id, name, existing_row in self.exercise_entries if existing_row is not row_widget]
+        self.exercise_entries = [
+            (saved_id, name, existing_row)
+            for saved_id, name, existing_row in self.exercise_entries
+            if existing_row is not row_widget
+        ]
 
 
 class WorkoutBuilderDialog(QDialog):
@@ -176,7 +195,9 @@ class WorkoutBuilderDialog(QDialog):
 
         self.add_phase_editor()
 
-        button_box = QDialogButtonBox(QDialogButtonBox.StandardButton.Save | QDialogButtonBox.StandardButton.Cancel)
+        button_box = QDialogButtonBox(
+            QDialogButtonBox.StandardButton.Save | QDialogButtonBox.StandardButton.Cancel
+        )
         button_box.accepted.connect(self.save_workout)
         button_box.rejected.connect(self.reject)
         top_layout.addWidget(button_box)
@@ -221,7 +242,14 @@ class WorkoutBuilderDialog(QDialog):
             return
 
         for phase_number, phase in enumerate(phases, start=1):
-            phase_id, _, phase_name, phase_description, repeat_count, rest_between_exercises = phase
+            (
+                phase_id,
+                _,
+                phase_name,
+                phase_description,
+                repeat_count,
+                rest_between_exercises,
+            ) = phase
             editor = WorkoutPhaseEditor(phase_number=phase_number)
             editor.phase_name_input.setText(phase_name)
             editor.phase_description_input.setPlainText(phase_description or "")
@@ -241,7 +269,9 @@ class WorkoutBuilderDialog(QDialog):
         equipment_needed = self.equipment_input.text().strip()
 
         if not workout_name or not description:
-            QMessageBox.warning(self, "Missing details", "Workout name and description are required.")
+            QMessageBox.warning(
+                self, "Missing details", "Workout name and description are required."
+            )
             return
 
         phase_rest_seconds = self.phase_rest_input.value()
@@ -282,7 +312,9 @@ class WorkoutBuilderDialog(QDialog):
                 rest_between_exercises_seconds=rest_between_exercises,
             )
 
-            for order_index, (exercise_id, exercise_name, row_widget) in enumerate(editor.exercise_entries, start=1):
+            for order_index, (exercise_id, _exercise_name, _row_widget) in enumerate(
+                editor.exercise_entries, start=1
+            ):
                 save_workout_phase_exercise(
                     phase_id=phase_id,
                     exercise_id=exercise_id,

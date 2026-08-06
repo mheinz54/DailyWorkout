@@ -1,4 +1,11 @@
-from PyQt6.QtWidgets import QDialog, QVBoxLayout, QFormLayout, QLabel, QSpinBox, QDialogButtonBox
+from PyQt6.QtWidgets import (
+    QDialog,
+    QDialogButtonBox,
+    QFormLayout,
+    QLabel,
+    QSpinBox,
+    QVBoxLayout,
+)
 
 
 class WorkoutRecordDialog(QDialog):

@@ -1,15 +1,32 @@
 from pathlib import Path
 from shutil import copy2
 
-from PyQt6.QtWidgets import (
-    QDialog, QVBoxLayout, QFormLayout, QLineEdit, QPlainTextEdit,
-    QComboBox, QSpinBox, QCheckBox, QPushButton, QLabel,
-    QFileDialog, QMessageBox, QHBoxLayout, QDialogButtonBox, QSizePolicy,
-)
-from PyQt6.QtGui import QTextOption, QPixmap
 from PyQt6.QtCore import Qt
+from PyQt6.QtGui import QPixmap, QTextOption
+from PyQt6.QtWidgets import (
+    QCheckBox,
+    QComboBox,
+    QDialog,
+    QDialogButtonBox,
+    QFileDialog,
+    QFormLayout,
+    QHBoxLayout,
+    QLabel,
+    QLineEdit,
+    QMessageBox,
+    QPlainTextEdit,
+    QPushButton,
+    QSizePolicy,
+    QSpinBox,
+    QVBoxLayout,
+)
 
-from src.database import save_exercise_record, get_exercise_by_id, update_exercise_record, get_exercises
+from src.database import (
+    get_exercise_by_id,
+    get_exercises,
+    save_exercise_record,
+    update_exercise_record,
+)
 
 BASE_DIR = Path(__file__).resolve().parents[1]
 WORKOUTS_IMAGES_DIR = BASE_DIR / "workouts" / "images"
@@ -49,7 +66,9 @@ class ExerciseBuilderDialog(QDialog):
         self.instructions_input.setWordWrapMode(QTextOption.WrapMode.WordWrap)
         self.instructions_input.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.instructions_input.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
-        self.instructions_input.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        self.instructions_input.setSizePolicy(
+            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding
+        )
         self.instructions_input.setMinimumWidth(520)
         instructions_layout = QVBoxLayout()
         instructions_layout.addWidget(instructions_label)
@@ -94,7 +113,9 @@ class ExerciseBuilderDialog(QDialog):
         self.image_label.setStyleSheet("color: gray;")
         self.image_label.setFixedSize(120, 90)
         self.image_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.image_label.setStyleSheet("border: 1px solid #cccccc; color: gray; background: #f6f6f6;")
+        self.image_label.setStyleSheet(
+            "border: 1px solid #cccccc; color: gray; background: #f6f6f6;"
+        )
 
         select_image_btn = QPushButton("Choose Image")
         select_image_btn.clicked.connect(self.choose_image)
@@ -110,7 +131,9 @@ class ExerciseBuilderDialog(QDialog):
 
         outer_layout.addLayout(form_layout)
 
-        button_box = QDialogButtonBox(QDialogButtonBox.StandardButton.Save | QDialogButtonBox.StandardButton.Cancel)
+        button_box = QDialogButtonBox(
+            QDialogButtonBox.StandardButton.Save | QDialogButtonBox.StandardButton.Cancel
+        )
         button_box.accepted.connect(self.save_exercise)
         button_box.rejected.connect(self.reject)
         outer_layout.addWidget(button_box)
@@ -140,7 +163,9 @@ class ExerciseBuilderDialog(QDialog):
             self.muscle_groups_input.clear()
             self.image_label.clear()
             self.image_label.setText("No image selected")
-            self.image_label.setStyleSheet("border: 1px solid #cccccc; color: gray; background: #f6f6f6;")
+            self.image_label.setStyleSheet(
+                "border: 1px solid #cccccc; color: gray; background: #f6f6f6;"
+            )
             return
 
         exercise = get_exercise_by_id(exercise_id)
@@ -148,7 +173,18 @@ class ExerciseBuilderDialog(QDialog):
             return
 
         self.editing_exercise_id = exercise[0]
-        _, name, instructions, image_path, measure_type, measure_value, duration_seconds, alternates_sides, side_switch_seconds, muscle_groups = exercise
+        (
+            _,
+            name,
+            instructions,
+            image_path,
+            measure_type,
+            measure_value,
+            duration_seconds,
+            alternates_sides,
+            side_switch_seconds,
+            muscle_groups,
+        ) = exercise
 
         self.name_input.setText(name)
         self.instructions_input.setPlainText(instructions)
@@ -172,19 +208,28 @@ class ExerciseBuilderDialog(QDialog):
         if not self.image_storage_path:
             self.image_label.clear()
             self.image_label.setText("No image selected")
-            self.image_label.setStyleSheet("border: 1px solid #cccccc; color: gray; background: #f6f6f6;")
+            self.image_label.setStyleSheet(
+                "border: 1px solid #cccccc; color: gray; background: #f6f6f6;"
+            )
             return
 
         image_path = BASE_DIR / self.image_storage_path
         if image_path.exists():
             pixmap = QPixmap(str(image_path))
-            scaled_pixmap = pixmap.scaled(120, 90, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
+            scaled_pixmap = pixmap.scaled(
+                120,
+                90,
+                Qt.AspectRatioMode.KeepAspectRatio,
+                Qt.TransformationMode.SmoothTransformation,
+            )
             self.image_label.setPixmap(scaled_pixmap)
             self.image_label.setStyleSheet("border: 1px solid #cccccc; background: #ffffff;")
         else:
             self.image_label.clear()
             self.image_label.setText("Image missing")
-            self.image_label.setStyleSheet("border: 1px solid #cccccc; color: gray; background: #f6f6f6;")
+            self.image_label.setStyleSheet(
+                "border: 1px solid #cccccc; color: gray; background: #f6f6f6;"
+            )
 
     def choose_image(self):
         file_path, _ = QFileDialog.getOpenFileName(
@@ -211,7 +256,11 @@ class ExerciseBuilderDialog(QDialog):
         muscle_groups = self.muscle_groups_input.text().strip()
 
         if not name or not instructions:
-            QMessageBox.warning(self, "Missing information", "Exercise name and instructions are required.")
+            QMessageBox.warning(
+                self,
+                "Missing information",
+                "Exercise name and instructions are required.",
+            )
             return
 
         measure_type = self.measure_type_combo.currentText()
@@ -223,7 +272,9 @@ class ExerciseBuilderDialog(QDialog):
             duration_seconds = self.duration_input.value()
 
         alternates_sides = 1 if self.alternating_checkbox.isChecked() else 0
-        side_switch_seconds = self.side_switch_seconds_input.value() if self.alternating_checkbox.isChecked() else 0
+        side_switch_seconds = (
+            self.side_switch_seconds_input.value() if self.alternating_checkbox.isChecked() else 0
+        )
 
         if self.editing_exercise_id is not None:
             update_exercise_record(

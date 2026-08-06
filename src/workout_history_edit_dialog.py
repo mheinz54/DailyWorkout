@@ -1,5 +1,14 @@
-from PyQt6.QtWidgets import QDialog, QVBoxLayout, QFormLayout, QLineEdit, QDateEdit, QSpinBox, QDialogButtonBox, QMessageBox
 from PyQt6.QtCore import QDate
+from PyQt6.QtWidgets import (
+    QDateEdit,
+    QDialog,
+    QDialogButtonBox,
+    QFormLayout,
+    QLineEdit,
+    QMessageBox,
+    QSpinBox,
+    QVBoxLayout,
+)
 
 from src.database import get_workout_record, update_workout_record
 

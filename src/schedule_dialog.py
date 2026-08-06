@@ -1,8 +1,19 @@
-from PyQt6.QtWidgets import QDialog, QVBoxLayout, QGridLayout, QLabel, QPushButton, QComboBox
-from PyQt6.QtGui import QFont
 from PyQt6.QtCore import Qt
+from PyQt6.QtGui import QFont
+from PyQt6.QtWidgets import (
+    QComboBox,
+    QDialog,
+    QGridLayout,
+    QLabel,
+    QPushButton,
+    QVBoxLayout,
+)
 
-from src.database import get_schedule_for_day, save_schedule_for_day, get_workout_templates
+from src.database import (
+    get_schedule_for_day,
+    get_workout_templates,
+    save_schedule_for_day,
+)
 
 
 class ScheduleDialog(QDialog):
@@ -17,7 +28,15 @@ class ScheduleDialog(QDialog):
 
         self.schedule_inputs = {}
         self.workout_templates = get_workout_templates()
-        days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+        days = [
+            "Monday",
+            "Tuesday",
+            "Wednesday",
+            "Thursday",
+            "Friday",
+            "Saturday",
+            "Sunday",
+        ]
 
         for row, day in enumerate(days):
             day_label = QLabel(f"<b>{day}:</b>")
@@ -37,11 +56,15 @@ class ScheduleDialog(QDialog):
                 if index != -1:
                     workout_combo.setCurrentIndex(index)
             workout_combo.blockSignals(False)
-            workout_combo.currentIndexChanged.connect(lambda _, d=day, c=workout_combo: self.select_workout(d, c))
+            workout_combo.currentIndexChanged.connect(
+                lambda _, d=day, c=workout_combo: self.select_workout(d, c)
+            )
             grid.addWidget(workout_combo, row, 1)
 
             clear_btn = QPushButton("Clear")
-            clear_btn.clicked.connect(lambda checked, d=day, c=workout_combo: self.clear_selection(d, c))
+            clear_btn.clicked.connect(
+                lambda checked, d=day, c=workout_combo: self.clear_selection(d, c)
+            )
             grid.addWidget(clear_btn, row, 2)
 
             self.schedule_inputs[day] = workout_combo

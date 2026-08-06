@@ -1,34 +1,40 @@
 import sys
-import os
-from pathlib import Path
 from datetime import datetime
+from pathlib import Path
 
 if __package__ in {None, ""}:
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from PyQt6.QtWidgets import (
-    QApplication, QMainWindow, QWidget, QVBoxLayout,
-    QHBoxLayout, QPushButton, QLabel, QTextBrowser,
-    QMessageBox, QDialog, QComboBox,
-)
+from PyQt6.QtCore import QTimer
 from PyQt6.QtGui import QFont
-from PyQt6.QtCore import Qt, QTimer
+from PyQt6.QtWidgets import (
+    QApplication,
+    QComboBox,
+    QDialog,
+    QHBoxLayout,
+    QLabel,
+    QMainWindow,
+    QPushButton,
+    QTextBrowser,
+    QVBoxLayout,
+    QWidget,
+)
 
 from src.database import (
+    get_exercise_by_id,
+    get_schedule_for_day,
+    get_workout_phase_exercises_for_phase,
+    get_workout_phases_for_template,
+    get_workout_template_by_id,
+    get_workout_templates,
     init_db,
     save_workout_record,
-    get_schedule_for_day,
-    get_workout_templates,
-    get_workout_template_by_id,
-    get_workout_phases_for_template,
-    get_workout_phase_exercises_for_phase,
-    get_exercise_by_id,
 )
-from src.schedule_dialog import ScheduleDialog
-from src.workout_record_dialog import WorkoutRecordDialog
-from src.workout_history_dialog import WorkoutHistoryDialog
 from src.exercise_builder_dialog import ExerciseBuilderDialog
+from src.schedule_dialog import ScheduleDialog
 from src.workout_builder_dialog import WorkoutBuilderDialog
+from src.workout_history_dialog import WorkoutHistoryDialog
+from src.workout_record_dialog import WorkoutRecordDialog
 
 
 class WorkoutViewerApp(QMainWindow):
@@ -61,37 +67,45 @@ class WorkoutViewerApp(QMainWindow):
 
         self.schedule_btn = QPushButton("📅 Manage Schedule")
         self.schedule_btn.setFont(QFont("Arial", 11, QFont.Weight.Bold))
-        self.schedule_btn.setStyleSheet("""
+        self.schedule_btn.setStyleSheet(
+            """
             QPushButton { background-color: #28a745; color: white; border-radius: 4px; padding: 6px 12px; margin-left: 5px; }
             QPushButton:hover { background-color: #218838; }
-        """)
+        """
+        )
         self.schedule_btn.clicked.connect(self.open_schedule_manager)
         left_btn_layout.addWidget(self.schedule_btn)
 
         self.history_btn = QPushButton("🕘 Workout History")
         self.history_btn.setFont(QFont("Arial", 11, QFont.Weight.Bold))
-        self.history_btn.setStyleSheet("""
+        self.history_btn.setStyleSheet(
+            """
             QPushButton { background-color: #6f42c1; color: white; border-radius: 4px; padding: 6px 12px; margin-left: 5px; }
             QPushButton:hover { background-color: #553098; }
-        """)
+        """
+        )
         self.history_btn.clicked.connect(self.open_history_view)
         left_btn_layout.addWidget(self.history_btn)
 
         self.exercise_builder_btn = QPushButton("🏋️ Exercise Builder")
         self.exercise_builder_btn.setFont(QFont("Arial", 11, QFont.Weight.Bold))
-        self.exercise_builder_btn.setStyleSheet("""
+        self.exercise_builder_btn.setStyleSheet(
+            """
             QPushButton { background-color: #ff7b00; color: white; border-radius: 4px; padding: 6px 12px; margin-left: 5px; }
             QPushButton:hover { background-color: #cc5d00; }
-        """)
+        """
+        )
         self.exercise_builder_btn.clicked.connect(self.open_exercise_builder)
         left_btn_layout.addWidget(self.exercise_builder_btn)
 
         self.workout_builder_btn = QPushButton("🧩 Workout Builder")
         self.workout_builder_btn.setFont(QFont("Arial", 11, QFont.Weight.Bold))
-        self.workout_builder_btn.setStyleSheet("""
+        self.workout_builder_btn.setStyleSheet(
+            """
             QPushButton { background-color: #0d6efd; color: white; border-radius: 4px; padding: 6px 12px; margin-left: 5px; }
             QPushButton:hover { background-color: #0b5ed7; }
-        """)
+        """
+        )
         self.workout_builder_btn.clicked.connect(self.open_workout_builder)
         left_btn_layout.addWidget(self.workout_builder_btn)
         top_layout.addLayout(left_btn_layout)
@@ -101,24 +115,30 @@ class WorkoutViewerApp(QMainWindow):
         right_timer_layout = QHBoxLayout()
         self.timer_label = QLabel("00:00")
         self.timer_label.setFont(QFont("Courier New", 16, QFont.Weight.Bold))
-        self.timer_label.setStyleSheet("color: #333; background-color: #e9ecef; padding: 4px 10px; border-radius: 4px; border: 1px solid #ced4da; margin-right: 8px;")
+        self.timer_label.setStyleSheet(
+            "color: #333; background-color: #e9ecef; padding: 4px 10px; border-radius: 4px; border: 1px solid #ced4da; margin-right: 8px;"
+        )
         right_timer_layout.addWidget(self.timer_label)
 
         self.start_stop_btn = QPushButton("Start")
         self.start_stop_btn.setFont(QFont("Arial", 11, QFont.Weight.Bold))
-        self.start_stop_btn.setStyleSheet("""
+        self.start_stop_btn.setStyleSheet(
+            """
             QPushButton { background-color: #4a4a4a; color: white; border-radius: 4px; padding: 6px 14px; }
             QPushButton:hover { background-color: #333333; }
-        """)
+        """
+        )
         self.start_stop_btn.clicked.connect(self.toggle_timer)
         right_timer_layout.addWidget(self.start_stop_btn)
 
         self.reset_btn = QPushButton("Reset")
         self.reset_btn.setFont(QFont("Arial", 11, QFont.Weight.Bold))
-        self.reset_btn.setStyleSheet("""
+        self.reset_btn.setStyleSheet(
+            """
             QPushButton { background-color: #dc3545; color: white; border-radius: 4px; padding: 6px 14px; margin-left: 4px; }
             QPushButton:hover { background-color: #bd2130; }
-        """)
+        """
+        )
         self.reset_btn.clicked.connect(self.reset_timer)
         right_timer_layout.addWidget(self.reset_btn)
         top_layout.addLayout(right_timer_layout)
@@ -127,7 +147,9 @@ class WorkoutViewerApp(QMainWindow):
 
         self.file_label = QLabel("No workout selected")
         self.file_label.setFont(QFont("Arial", 10, QFont.Weight.Normal))
-        self.file_label.setStyleSheet("color: gray; font-style: italic; margin-top: 4px; margin-bottom: 8px; margin-left: 2px;")
+        self.file_label.setStyleSheet(
+            "color: gray; font-style: italic; margin-top: 4px; margin-bottom: 8px; margin-left: 2px;"
+        )
         main_layout.addWidget(self.file_label)
 
         self.display_area = QTextBrowser()
@@ -143,21 +165,27 @@ class WorkoutViewerApp(QMainWindow):
         else:
             self.stopwatch.start(1000)
             self.start_stop_btn.setText("Stop")
-            self.start_stop_btn.setStyleSheet("""
+            self.start_stop_btn.setStyleSheet(
+                """
                 QPushButton { background-color: #e0a800; color: black; border-radius: 4px; padding: 6px 14px; }
                 QPushButton:hover { background-color: #d39e00; }
-            """)
+            """
+            )
 
     def set_start_button_state(self):
         self.start_stop_btn.setText("Start")
-        self.start_stop_btn.setStyleSheet("""
+        self.start_stop_btn.setStyleSheet(
+            """
             QPushButton { background-color: #4a4a4a; color: white; border-radius: 4px; padding: 6px 14px; }
             QPushButton:hover { background-color: #333333; }
-        """)
+        """
+        )
 
     def prompt_record_workout(self):
         workout_name = self.current_workout_name or "Unknown Workout"
-        dialog = WorkoutRecordDialog(self, workout_name=workout_name, total_seconds=self.timer_seconds)
+        dialog = WorkoutRecordDialog(
+            self, workout_name=workout_name, total_seconds=self.timer_seconds
+        )
         response = dialog.exec()
 
         if response == QDialog.DialogCode.Accepted:
@@ -190,8 +218,12 @@ class WorkoutViewerApp(QMainWindow):
                 self.current_workout_name = template[1]
                 markdown_content = self.generate_workout_markdown(workout_template_id, template)
                 self.display_area.setMarkdown(markdown_content)
-                self.file_label.setText(f"Loaded today's scheduled workout ({today_name}): {template[1]}")
-                self.file_label.setStyleSheet("color: #007acc; font-style: normal; margin-top: 4px; margin-bottom: 8px; margin-left: 2px;")
+                self.file_label.setText(
+                    f"Loaded today's scheduled workout ({today_name}): {template[1]}"
+                )
+                self.file_label.setStyleSheet(
+                    "color: #007acc; font-style: normal; margin-top: 4px; margin-bottom: 8px; margin-left: 2px;"
+                )
                 return
 
         self.current_workout_name = ""
@@ -207,7 +239,9 @@ class WorkoutViewerApp(QMainWindow):
                 "<h1>Workout Preview</h1><p>Select a saved workout from the dropdown to generate and display its markdown preview.</p>"
             )
             self.file_label.setText("Previewing generated workout markdown")
-            self.file_label.setStyleSheet("color: #6c757d; font-style: italic; margin-top: 4px; margin-bottom: 8px; margin-left: 2px;")
+            self.file_label.setStyleSheet(
+                "color: #6c757d; font-style: italic; margin-top: 4px; margin-bottom: 8px; margin-left: 2px;"
+            )
             return
 
         template = get_workout_template_by_id(workout_id)
@@ -217,7 +251,9 @@ class WorkoutViewerApp(QMainWindow):
         markdown_content = self.generate_workout_markdown(workout_id, template)
         self.display_area.setMarkdown(markdown_content)
         self.file_label.setText(f"Previewing saved workout template: {template[1]}")
-        self.file_label.setStyleSheet("color: #0d6efd; font-style: normal; margin-top: 4px; margin-bottom: 8px; margin-left: 2px;")
+        self.file_label.setStyleSheet(
+            "color: #0d6efd; font-style: normal; margin-top: 4px; margin-bottom: 8px; margin-left: 2px;"
+        )
 
     def generate_workout_markdown(self, workout_id, template):
         _, name, description, equipment_needed, phase_rest_seconds = template
@@ -234,7 +270,14 @@ class WorkoutViewerApp(QMainWindow):
 
         phases = get_workout_phases_for_template(workout_id)
         for phase_number, phase in enumerate(phases, start=1):
-            phase_id, _, phase_name, phase_description, repeat_count, rest_between_exercises = phase
+            (
+                phase_id,
+                _,
+                phase_name,
+                phase_description,
+                repeat_count,
+                rest_between_exercises,
+            ) = phase
             lines.append(f"### Phase {phase_number}: {phase_name} ({repeat_count}x)")
             if phase_description:
                 lines.append(f"*   **Phase Notes:** {phase_description}")
@@ -267,7 +310,7 @@ class WorkoutViewerApp(QMainWindow):
                     lines.append(f"*   **Muscle Groups:** {muscle_groups}")
                 if image_path:
                     image_uri = self._resolve_preview_image_uri(image_path)
-                    lines.append(f"<br/><img src=\"{image_uri}\" width=\"350\"  />")
+                    lines.append(f'<br/><img src="{image_uri}" width="350"  />')
                 lines.append("<br/>")
 
         return "\n".join(lines)
