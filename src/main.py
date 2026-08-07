@@ -313,8 +313,9 @@ class WorkoutViewerApp(QMainWindow):
             f"*   **Description:** {description}",
             f"*   **Equipment:** {equipment_needed or 'No equipment specified'}",
             f"*   **Rest Between Phases:** {phase_rest_seconds} seconds",
-            "",
             "---",
+            "",
+            "<br/>",
             "",
         ]
 
@@ -332,7 +333,7 @@ class WorkoutViewerApp(QMainWindow):
             if phase_description:
                 lines.append(f"*   **Phase Notes:** {phase_description}")
             lines.append(f"*   **Rest Between Exercises:** {rest_between_exercises} seconds")
-            lines.append("")
+            lines.append("<br/>")
 
             phase_exercises = get_workout_phase_exercises_for_phase(phase_id)
             for order_index, phase_exercise in enumerate(phase_exercises, start=1):
@@ -347,21 +348,27 @@ class WorkoutViewerApp(QMainWindow):
                 measure_type = exercise[4]
                 measure_value = exercise[5]
                 duration_seconds = exercise[6]
+                alternates_sides = exercise[7]
                 muscle_groups = exercise[9]
 
                 lines.append(f"#### {order_index}. {exercise_name}")
                 if instructions:
                     lines.append(f"*   **Directions:** <br/> - {instructions}")
                 if measure_type == "Reps" and measure_value is not None:
-                    lines.append(f"*   **Reps/Time:** {measure_value} {measure_type}")
+                    lines.append(f"*   **Reps/Time:** {measure_value} {measure_type} {'Per Side' if alternates_sides else ''}")
                 elif duration_seconds:
-                    lines.append(f"*   **Reps/Time:** {duration_seconds} seconds")
+                    lines.append(f"*   **Reps/Time:** {duration_seconds} seconds {'Per Side' if alternates_sides else ''}")
                 if muscle_groups:
                     lines.append(f"*   **Muscle Groups:** {muscle_groups}")
                 if image_path:
                     image_uri = self._resolve_preview_image_uri(image_path)
                     lines.append(f'<br/><img src="{image_uri}" width="350"  />')
-                lines.append("<br/>")
+                #lines.append("<br/>")
+            lines.append("")
+            lines.append("&nbsp;")
+            lines.append("")
+            lines.append("---")
+            lines.append("")
 
         return "\n".join(lines)
 

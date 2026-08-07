@@ -17,12 +17,7 @@ DailyWorkout/
 │   └── workout_history_edit_dialog.py
 ├── data/
 │   └── workout_schedule.db
-├── workouts/
-│   ├── Ankle_Knee_Routine.md
-│   ├── Back_Shoulders_Routine.md
-│   ├── Chest_Hamstrings_Routine.md
-│   ├── Core_Glute_Routine.md
-│   └── images/
+├── images/
 └── .gitignore
 ```
 

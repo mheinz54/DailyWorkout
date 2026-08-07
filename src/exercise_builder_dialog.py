@@ -29,7 +29,7 @@ from src.database import (
 )
 
 BASE_DIR = Path(__file__).resolve().parents[1]
-WORKOUTS_IMAGES_DIR = BASE_DIR / "workouts" / "images"
+WORKOUTS_IMAGES_DIR = BASE_DIR / "images"
 WORKOUTS_IMAGES_DIR.mkdir(parents=True, exist_ok=True)
 
 
@@ -235,7 +235,7 @@ class ExerciseBuilderDialog(QDialog):
         file_path, _ = QFileDialog.getOpenFileName(
             self,
             "Select Exercise Image",
-            str(BASE_DIR),
+            None,
             "Images (*.png *.jpg *.jpeg *.gif *.webp);;All Files (*)",
         )
         if not file_path:
@@ -243,9 +243,8 @@ class ExerciseBuilderDialog(QDialog):
 
         original_name = Path(file_path).name
         destination = WORKOUTS_IMAGES_DIR / original_name
-        if destination.exists():
-            destination = WORKOUTS_IMAGES_DIR / f"_{original_name}"
-        copy2(file_path, destination)
+        if not destination.exists():
+            copy2(file_path, destination)
 
         self.image_storage_path = str(destination.relative_to(BASE_DIR)).replace("\\", "/")
         self.update_image_preview()
