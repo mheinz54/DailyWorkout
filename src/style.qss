@@ -95,3 +95,86 @@ QGroupBox::title {
     left: 8px;
     padding: 0 3px;
 }
+
+QLineEdit, QPlainTextEdit {
+    border: 1px solid #ced4da;
+    border-radius: 6px;
+    padding: 6px 12px;
+    background-color: #ffffff;
+    color: #495057;
+}
+
+QLineEdit:hover, QPlainTextEdit:hover {
+    border-color: #adb5bd;
+}
+
+QLineEdit:focus, QPlainTextEdit:focus {
+    border-color: #228be6;
+}
+
+/* Numeric stepper containers */
+QSpinBox {
+    border: 1px solid #ced4da;
+    border-radius: 6px;
+    padding: 6px 6px 6px 12px;
+    background-color: #ffffff;
+    color: #495057;
+    min-height: 24px;
+}
+
+QSpinBox:hover {
+    border-color: #adb5bd;
+}
+
+QSpinBox:focus {
+    border-color: #228be6;
+}
+
+QSpinBox:disabled {
+    background-color: #e9ecef;
+    color: #6c757d;
+    border-color: #dee2e6;
+}
+
+/* Checkbox alignment and accent coloration */
+QCheckBox {
+    color: #495057;
+    spacing: 8px;
+}
+
+QCheckBox::indicator {
+    width: 16px;
+    height: 16px;
+    border: 1px solid #ced4da;
+    border-radius: 4px;
+    background-color: #ffffff;
+}
+
+QCheckBox::indicator:hover {
+    border-color: #adb5bd;
+}
+
+QCheckBox::indicator:checked {
+    background-color: #228be6;
+    border-color: #228be6;
+}
+
+/* Generic form interactive action buttons (e.g., Choose Image) */
+QPushButton {
+    background-color: #ffffff;
+    border: 1px solid #ced4da;
+    border-radius: 6px;
+    color: #495057;
+    padding: 6px 12px;
+    font-size: 12px;
+}
+
+QPushButton:hover {
+    background-color: #f1f3f5;
+    border-color: #adb5bd;
+    color: #212529;
+}
+
+QPushButton:pressed {
+    background-color: #e9ecef;
+}

@@ -37,31 +37,29 @@ class ExerciseBuilderDialog(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setWindowTitle("Exercise Builder")
-        self.resize(640, 640)
-
+        self.resize(640, 440)
         self.image_storage_path = ""
         self.editing_exercise_id = None
 
-        outer_layout = QVBoxLayout(self)
-        form_layout = QFormLayout()
-
+        # --- Instantiate Input Elements ---
         self.exercise_selector = QComboBox()
         self.exercise_selector.addItem("Create New Exercise", -1)
         for exercise_id, name, *_ in get_exercises():
             self.exercise_selector.addItem(name, exercise_id)
         self.exercise_selector.currentIndexChanged.connect(self.load_selected_exercise)
-        form_layout.addRow("Load Saved Exercise", self.exercise_selector)
 
         self.name_input = QLineEdit()
         self.name_input.setPlaceholderText("e.g. Dumbbell Row")
-        self.name_input.setMinimumWidth(200)
-        form_layout.addRow("Exercise Name", self.name_input)
+        self.name_input.setMinimumWidth(250)
+
+        self.muscle_groups_input = QLineEdit()
+        self.muscle_groups_input.setPlaceholderText("e.g. Chest, Shoulders, Triceps")
+        self.muscle_groups_input.setMinimumWidth(250)
 
         instructions_label = QLabel("How to Do It")
         instructions_label.setStyleSheet("font-weight: bold;")
         self.instructions_input = QPlainTextEdit()
         self.instructions_input.setPlaceholderText("Describe how to perform the exercise")
-        self.instructions_input.setMinimumHeight(140)
         self.instructions_input.setLineWrapMode(QPlainTextEdit.LineWrapMode.WidgetWidth)
         self.instructions_input.setWordWrapMode(QTextOption.WrapMode.WordWrap)
         self.instructions_input.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
@@ -69,22 +67,14 @@ class ExerciseBuilderDialog(QDialog):
         self.instructions_input.setSizePolicy(
             QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding
         )
-        self.instructions_input.setMinimumWidth(520)
-        instructions_layout = QVBoxLayout()
-        instructions_layout.addWidget(instructions_label)
-        instructions_layout.addWidget(self.instructions_input, 1)
-        outer_layout.addLayout(instructions_layout, 1)
 
         self.measure_type_combo = QComboBox()
         self.measure_type_combo.addItems(["Reps", "Duration"])
-        form_layout.addRow("Reps or Duration", self.measure_type_combo)
 
         self.reps_label = QLabel("Reps")
         self.reps_input = QSpinBox()
         self.reps_input.setRange(1, 500)
         self.reps_input.setValue(10)
-        self.reps_input.setEnabled(True)
-        form_layout.addRow(self.reps_label, self.reps_input)
 
         self.duration_label = QLabel("Duration")
         self.duration_input = QSpinBox()
@@ -92,51 +82,89 @@ class ExerciseBuilderDialog(QDialog):
         self.duration_input.setValue(30)
         self.duration_input.setSuffix(" sec")
         self.duration_input.setEnabled(False)
-        form_layout.addRow(self.duration_label, self.duration_input)
 
-        self.alternating_checkbox = QCheckBox("Do one side, then switch to the other side")
-        form_layout.addRow("Side Rotation", self.alternating_checkbox)
-
+        self.alternating_checkbox = QCheckBox("One side, then switch")
         self.side_switch_seconds_input = QSpinBox()
         self.side_switch_seconds_input.setRange(1, 600)
         self.side_switch_seconds_input.setValue(30)
         self.side_switch_seconds_input.setSuffix(" sec")
         self.side_switch_seconds_input.setEnabled(False)
-        form_layout.addRow("Default Side Switch Time", self.side_switch_seconds_input)
-
-        self.muscle_groups_input = QLineEdit()
-        self.muscle_groups_input.setPlaceholderText("e.g. Chest, Shoulders, Triceps")
-        self.muscle_groups_input.setMinimumWidth(200)
-        form_layout.addRow("Muscle Groups", self.muscle_groups_input)
 
         self.image_label = QLabel("No image selected")
-        self.image_label.setStyleSheet("color: gray;")
-        self.image_label.setFixedSize(120, 90)
+        self.image_label.setFixedSize(160, 120)  # Expanded aspect ratio for the dashboard panel
         self.image_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.image_label.setStyleSheet(
-            "border: 1px solid #cccccc; color: gray; background: #f6f6f6;"
-        )
+        self.image_label.setObjectName("ImagePreviewLabel")
 
         select_image_btn = QPushButton("Choose Image")
         select_image_btn.clicked.connect(self.choose_image)
 
-        image_row_layout = QHBoxLayout()
-        image_row_layout.addWidget(self.image_label)
-        image_row_layout.addWidget(select_image_btn)
-        form_layout.addRow("Exercise Image", image_row_layout)
-
+        # --- Signal Connections ---
         self.alternating_checkbox.toggled.connect(self.side_switch_seconds_input.setEnabled)
         self.measure_type_combo.currentTextChanged.connect(self.update_measure_visibility)
-        self.update_measure_visibility(self.measure_type_combo.currentText())
 
-        outer_layout.addLayout(form_layout)
+        # --- Two-Column Layout Engineering ---
+        outer_layout = QVBoxLayout(self)
+        content_layout = QHBoxLayout()
 
+        # Left Column: Descriptions & Details
+        left_panel = QVBoxLayout()
+        form_layout_left = QFormLayout()
+        form_layout_left.addRow("Load Exercise:", self.exercise_selector)
+        form_layout_left.addRow("Name:", self.name_input)
+        form_layout_left.addRow("Muscles:", self.muscle_groups_input)
+
+        left_panel.addLayout(form_layout_left)
+        left_panel.addSpacing(10)
+        left_panel.addWidget(instructions_label)
+        left_panel.addWidget(self.instructions_input, 1)
+
+        # Right Column: Media Preview & Quantitative Mechanics
+        right_panel = QVBoxLayout()
+        right_panel.setAlignment(Qt.AlignmentFlag.AlignTop)
+
+        # Media Widget Grouping
+        image_group = QVBoxLayout()
+        image_group.setAlignment(Qt.AlignmentFlag.AlignHCenter)
+        image_group.addWidget(self.image_label, 0, Qt.AlignmentFlag.AlignCenter)
+        image_group.addWidget(select_image_btn)
+        right_panel.addLayout(image_group)
+        right_panel.addSpacing(20)
+
+        # Quantitative Config Form
+        form_layout_right = QFormLayout()
+        form_layout_right.addRow("Track By:", self.measure_type_combo)
+        form_layout_right.addRow(self.reps_label, self.reps_input)
+        form_layout_right.addRow(self.duration_label, self.duration_input)
+        form_layout_right.addRow("Rotation:", self.alternating_checkbox)
+        form_layout_right.addRow("Switch Time:", self.side_switch_seconds_input)
+        right_panel.addLayout(form_layout_right)
+
+        # Glue Columns Together (60% width Left, 40% width Right)
+        content_layout.addLayout(left_panel, 60)
+        content_layout.addSpacing(15)  # Gutter separation
+        content_layout.addLayout(right_panel, 40)
+
+        outer_layout.addLayout(content_layout, 1)
+
+        # Dialog Action Row
         button_box = QDialogButtonBox(
             QDialogButtonBox.StandardButton.Save | QDialogButtonBox.StandardButton.Cancel
         )
         button_box.accepted.connect(self.save_exercise)
         button_box.rejected.connect(self.reject)
+
+        save_btn = button_box.button(QDialogButtonBox.StandardButton.Save)
+        if save_btn:
+            save_btn.setObjectName("DoneBtn")
+
+        cancel_btn = button_box.button(QDialogButtonBox.StandardButton.Cancel)
+        if cancel_btn:
+            cancel_btn.setObjectName("CancelBtn")
+
         outer_layout.addWidget(button_box)
+
+        # Run initialization visibility check
+        self.update_measure_visibility(self.measure_type_combo.currentText())
 
     def update_measure_visibility(self, measure_type):
         show_reps = measure_type == "Reps"
@@ -144,7 +172,6 @@ class ExerciseBuilderDialog(QDialog):
         self.reps_input.setVisible(show_reps)
         self.duration_label.setVisible(not show_reps)
         self.duration_input.setVisible(not show_reps)
-
         self.reps_input.setEnabled(show_reps)
         self.duration_input.setEnabled(not show_reps)
 
@@ -163,9 +190,6 @@ class ExerciseBuilderDialog(QDialog):
             self.muscle_groups_input.clear()
             self.image_label.clear()
             self.image_label.setText("No image selected")
-            self.image_label.setStyleSheet(
-                "border: 1px solid #cccccc; color: gray; background: #f6f6f6;"
-            )
             return
 
         exercise = get_exercise_by_id(exercise_id)
@@ -217,8 +241,8 @@ class ExerciseBuilderDialog(QDialog):
         if image_path.exists():
             pixmap = QPixmap(str(image_path))
             scaled_pixmap = pixmap.scaled(
+                160,
                 120,
-                90,
                 Qt.AspectRatioMode.KeepAspectRatio,
                 Qt.TransformationMode.SmoothTransformation,
             )
