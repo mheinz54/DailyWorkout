@@ -355,15 +355,19 @@ class WorkoutViewerApp(QMainWindow):
                 if instructions:
                     lines.append(f"*   **Directions:** <br/> - {instructions}")
                 if measure_type == "Reps" and measure_value is not None:
-                    lines.append(f"*   **Reps/Time:** {measure_value} {measure_type} {'Per Side' if alternates_sides else ''}")
+                    lines.append(
+                        f"*   **Reps/Time:** {measure_value} {measure_type} {'Per Side' if alternates_sides else ''}"
+                    )
                 elif duration_seconds:
-                    lines.append(f"*   **Reps/Time:** {duration_seconds} seconds {'Per Side' if alternates_sides else ''}")
+                    lines.append(
+                        f"*   **Reps/Time:** {duration_seconds} seconds {'Per Side' if alternates_sides else ''}"
+                    )
                 if muscle_groups:
                     lines.append(f"*   **Muscle Groups:** {muscle_groups}")
                 if image_path:
                     image_uri = self._resolve_preview_image_uri(image_path)
                     lines.append(f'<br/><img src="{image_uri}" width="350"  />')
-                #lines.append("<br/>")
+
             lines.append("")
             lines.append("&nbsp;")
             lines.append("")
@@ -399,6 +403,10 @@ class WorkoutViewerApp(QMainWindow):
 def main():
     init_db()
     app = QApplication(sys.argv)
+    # Load external styling sheet
+    with open("src/style.qss", "r") as f:
+        app.setStyleSheet(f.read())
+
     viewer = WorkoutViewerApp()
     viewer.show()
     sys.exit(app.exec())

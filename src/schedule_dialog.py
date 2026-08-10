@@ -1,9 +1,11 @@
 from PyQt6.QtCore import Qt
-from PyQt6.QtGui import QFont
+from PyQt6.QtGui import QCursor, QFont
 from PyQt6.QtWidgets import (
     QComboBox,
     QDialog,
+    QFrame,
     QGridLayout,
+    QHBoxLayout,
     QLabel,
     QPushButton,
     QVBoxLayout,
@@ -22,56 +24,90 @@ class ScheduleDialog(QDialog):
         self.setWindowTitle("Assign Saved Workouts to Days")
         self.setMinimumWidth(660)
 
-        layout = QVBoxLayout(self)
+        # Main Layout container
+        main_layout = QVBoxLayout(self)
+        main_layout.setContentsMargins(24, 24, 24, 24)
+        main_layout.setSpacing(16)
+
+        # Content Grid
         grid = QGridLayout()
-        layout.addLayout(grid)
+        grid.setSpacing(12)
+        grid.setColumnStretch(0, 1)  # Day Column
+        grid.setColumnStretch(1, 4)  # Dropdown Column
+        grid.setColumnStretch(2, 0)  # Clear Button Column (Hug contents)
+        main_layout.addLayout(grid)
 
         self.schedule_inputs = {}
+        self.clear_buttons = {}
+
         self.workout_templates = get_workout_templates()
-        days = [
-            "Monday",
-            "Tuesday",
-            "Wednesday",
-            "Thursday",
-            "Friday",
-            "Saturday",
-            "Sunday",
-        ]
+
+        days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
 
         for row, day in enumerate(days):
-            day_label = QLabel(f"<b>{day}:</b>")
-            day_label.setFont(QFont("Arial", 11))
-            grid.addWidget(day_label, row, 0)
+            # 1. Day Label styling
+            day_label = QLabel(day)
+            day_label.setFont(QFont("Segoe UI", 11, QFont.Weight.Medium))
+            grid.addWidget(day_label, row, 0, Qt.AlignmentFlag.AlignVCenter)
 
-            schedule_path, workout_template_id = get_schedule_for_day(day)
-
+            # 2. Setup the Dropdown
             workout_combo = QComboBox()
+            workout_combo.setFont(QFont("Segoe UI", 10))
+            workout_combo.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
             workout_combo.addItem("Select saved workout", -1)
+
             for template_id, name, *_ in self.workout_templates:
                 workout_combo.addItem(name, template_id)
 
+            # Load initial data smoothly without triggering early save signals
             workout_combo.blockSignals(True)
+            schedule_path, workout_template_id = get_schedule_for_day(day)
             if workout_template_id is not None:
                 index = workout_combo.findData(workout_template_id)
                 if index != -1:
                     workout_combo.setCurrentIndex(index)
             workout_combo.blockSignals(False)
+
+            grid.addWidget(workout_combo, row, 1)
+            self.schedule_inputs[day] = workout_combo
+
+            # 3. Setup sleek Clear Button
+            clear_btn = QPushButton("×")
+            clear_btn.setObjectName("ClearBtn")
+            clear_btn.setToolTip(f"Clear workout assignment for {day}")
+            clear_btn.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
+            grid.addWidget(clear_btn, row, 2)
+            self.clear_buttons[day] = clear_btn
+
+            # Dynamic visibility based on selection presence
+            clear_btn.setVisible(workout_combo.currentIndex() > 0)
+
+            # Connect selection changes to update visibility state instantly
             workout_combo.currentIndexChanged.connect(
                 lambda _, d=day, c=workout_combo: self.select_workout(d, c)
             )
-            grid.addWidget(workout_combo, row, 1)
 
-            clear_btn = QPushButton("Clear")
             clear_btn.clicked.connect(
                 lambda checked, d=day, c=workout_combo: self.clear_selection(d, c)
             )
-            grid.addWidget(clear_btn, row, 2)
 
-            self.schedule_inputs[day] = workout_combo
+        # Divider line above action items
+        divider = QFrame()
+        divider.setFrameShape(QFrame.Shape.HLine)
+        divider.setFrameShadow(QFrame.Shadow.Sunken)
+        divider.setStyleSheet("color: #dee2e6;")
+        main_layout.addWidget(divider)
 
+        # 4. Dialog Actions Footer
+        footer_layout = QHBoxLayout()
         close_btn = QPushButton("Done")
+        close_btn.setObjectName("DoneBtn")
+        close_btn.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
         close_btn.clicked.connect(self.accept)
-        layout.addWidget(close_btn, alignment=Qt.AlignmentFlag.AlignRight)
+
+        footer_layout.addStretch()
+        footer_layout.addWidget(close_btn)
+        main_layout.addLayout(footer_layout)
 
     def select_workout(self, day, combo):
         workout_id = combo.currentData()
