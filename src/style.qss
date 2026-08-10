@@ -64,3 +64,34 @@ QPushButton#CancelBtn:hover {
 QPushButton#CancelBtn:pressed {
     background-color: #a4a3a3;
 }
+QPushButton#EditBtn {
+    background-color: transparent;
+    border: 1px solid #dee2e6;
+    border-radius: 6px;
+    color: #495057;
+    font-weight: bold;
+    font-size: 14px;
+    min-width: 32px;
+    min-height: 36px;
+    padding: 0px 10px; 
+}
+QPushButton#EditBtn:hover {
+    background-color: #e9ecef;
+    color: #212529;
+    border-color: #ced4da;
+}
+QPushButton#EditBtn:pressed {
+    background-color: #dee2e6;
+}
+QGroupBox {
+    font-weight: bold;
+    border: 1px solid #dee2e6;
+    border-radius: 6px;
+    margin-top: 12px;
+    padding-top: 10px;
+}
+QGroupBox::title {
+    subcontrol-origin: margin;
+    left: 8px;
+    padding: 0 3px;
+}
