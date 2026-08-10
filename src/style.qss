@@ -49,3 +49,18 @@ QPushButton#DoneBtn:hover {
 QPushButton#DoneBtn:pressed {
     background-color: #1971c2;
 }
+QPushButton#CancelBtn {
+    background-color: #b4b1b1;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    padding: 8px 20px;
+    font-weight: bold;
+    font-size: 12px;
+}
+QPushButton#CancelBtn:hover {
+    background-color: #a4a3a3;
+}
+QPushButton#CancelBtn:pressed {
+    background-color: #a4a3a3;
+}

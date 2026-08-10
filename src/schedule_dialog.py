@@ -39,7 +39,7 @@ class ScheduleDialog(QDialog):
 
         self.schedule_inputs = {}
         self.clear_buttons = {}
-
+        self.initial_state = {}  # Tracks database state for rollback
         self.workout_templates = get_workout_templates()
 
         days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
@@ -62,6 +62,10 @@ class ScheduleDialog(QDialog):
             # Load initial data smoothly without triggering early save signals
             workout_combo.blockSignals(True)
             schedule_path, workout_template_id = get_schedule_for_day(day)
+
+            # Store snapshot data for rollback history
+            self.initial_state[day] = workout_template_id
+
             if workout_template_id is not None:
                 index = workout_combo.findData(workout_template_id)
                 if index != -1:
@@ -86,7 +90,6 @@ class ScheduleDialog(QDialog):
             workout_combo.currentIndexChanged.connect(
                 lambda _, d=day, c=workout_combo: self.select_workout(d, c)
             )
-
             clear_btn.clicked.connect(
                 lambda checked, d=day, c=workout_combo: self.clear_selection(d, c)
             )
@@ -100,12 +103,21 @@ class ScheduleDialog(QDialog):
 
         # 4. Dialog Actions Footer
         footer_layout = QHBoxLayout()
+
+        # Cancel Button (Triggers rollback)
+        cancel_btn = QPushButton("Cancel")
+        cancel_btn.setObjectName("CancelBtn")
+        cancel_btn.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
+        cancel_btn.clicked.connect(self.rollback_and_reject)
+
+        # Done Button
         close_btn = QPushButton("Done")
         close_btn.setObjectName("DoneBtn")
         close_btn.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
         close_btn.clicked.connect(self.accept)
 
         footer_layout.addStretch()
+        footer_layout.addWidget(cancel_btn)
         footer_layout.addWidget(close_btn)
         main_layout.addLayout(footer_layout)
 
@@ -115,7 +127,16 @@ class ScheduleDialog(QDialog):
             save_schedule_for_day(day, "", None)
         else:
             save_schedule_for_day(day, "", workout_id)
+        # Update clear button visibility
+        if day in self.clear_buttons:
+            self.clear_buttons[day].setVisible(combo.currentIndex() > 0)
 
     def clear_selection(self, day, combo):
         combo.setCurrentIndex(0)
         save_schedule_for_day(day, "", None)
+
+    def rollback_and_reject(self):
+        """Restores database assignments to what they were when dialog opened."""
+        for day, original_workout_id in self.initial_state.items():
+            save_schedule_for_day(day, "", original_workout_id)
+        self.reject()
