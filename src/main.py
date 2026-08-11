@@ -11,6 +11,7 @@ from PyQt6.QtWidgets import (
     QApplication,
     QComboBox,
     QDialog,
+    QFrame,
     QHBoxLayout,
     QLabel,
     QMainWindow,
@@ -43,143 +44,145 @@ class WorkoutViewerApp(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Daily Workout Viewer")
-        self.setGeometry(100, 100, 850, 650)
+        self.setGeometry(100, 100, 950, 700)
 
         self.timer_seconds = 0
         self.current_workout_name = ""
         self.markdown_font_size = self.load_saved_font_size()
+
         self.stopwatch = QTimer()
         self.stopwatch.timeout.connect(self.update_timer_display)
 
+        # Central Widget & Global Horizontal Split
         main_widget = QWidget()
         self.setCentralWidget(main_widget)
-        main_layout = QVBoxLayout(main_widget)
-        main_layout.setContentsMargins(15, 15, 15, 15)
+        global_layout = QHBoxLayout(main_widget)
+        global_layout.setContentsMargins(0, 0, 0, 0)
+        global_layout.setSpacing(0)
 
-        top_layout = QHBoxLayout()
+        # ==========================================
+        # LEFT SIDEBAR
+        # ==========================================
+        sidebar_widget = QWidget()
+        sidebar_widget.setFixedWidth(220)
+        sidebar_layout = QVBoxLayout(sidebar_widget)
+        sidebar_layout.setContentsMargins(15, 20, 15, 20)
+        sidebar_layout.setSpacing(10)
 
-        left_btn_layout = QHBoxLayout()
+        # Sidebar Title
+        sidebar_title = QLabel("Workout Hub")
+        sidebar_layout.addWidget(sidebar_title)
+
+        # Navigation Buttons (Images removed)
+        self.schedule_btn = QPushButton("Manage Schedule")
+        self.schedule_btn.clicked.connect(self.open_schedule_manager)
+        sidebar_layout.addWidget(self.schedule_btn)
+
+        self.history_btn = QPushButton("Workout History")
+        self.history_btn.clicked.connect(self.open_history_view)
+        sidebar_layout.addWidget(self.history_btn)
+
+        # Separator line in sidebar
+        line = QFrame()
+        line.setFrameShape(QFrame.Shape.HLine)
+        sidebar_layout.addWidget(line)
+
+        self.exercise_builder_btn = QPushButton("Exercise Builder")
+        self.exercise_builder_btn.clicked.connect(self.open_exercise_builder)
+        sidebar_layout.addWidget(self.exercise_builder_btn)
+
+        self.workout_builder_btn = QPushButton("Workout Builder")
+        self.workout_builder_btn.clicked.connect(self.open_workout_builder)
+        sidebar_layout.addWidget(self.workout_builder_btn)
+
+        sidebar_layout.addStretch()
+        global_layout.addWidget(sidebar_widget)
+
+        # ==========================================
+        # MAIN CONTENT AREA (Right Side)
+        # ==========================================
+        content_widget = QWidget()
+        content_layout = QVBoxLayout(content_widget)
+        content_layout.setContentsMargins(15, 20, 15, 20)
+        content_layout.setSpacing(15)
+
+        # Top Bar: Selection & Status
+        top_bar_layout = QHBoxLayout()
 
         self.workout_selector = QComboBox()
-        self.workout_selector.setMinimumWidth(240)
+        self.workout_selector.setMinimumWidth(300)
         self.workout_selector.addItem("Select saved workout", -1)
         for workout_id, name, *_ in get_workout_templates():
             self.workout_selector.addItem(name, workout_id)
         self.workout_selector.currentIndexChanged.connect(self.load_selected_workout_preview)
-        left_btn_layout.addWidget(self.workout_selector)
+        top_bar_layout.addWidget(self.workout_selector)
 
-        self.schedule_btn = QPushButton("📅 Manage Schedule")
-        self.schedule_btn.setFont(QFont("Arial", 11, QFont.Weight.Bold))
-        self.schedule_btn.setStyleSheet(
-            """
-            QPushButton { background-color: #28a745; color: white; border-radius: 4px; padding: 6px 12px; margin-left: 5px; }
-            QPushButton:hover { background-color: #218838; }
-        """
-        )
-        self.schedule_btn.clicked.connect(self.open_schedule_manager)
-        left_btn_layout.addWidget(self.schedule_btn)
+        top_bar_layout.addStretch()
+        content_layout.addLayout(top_bar_layout)
 
-        self.history_btn = QPushButton("🕘 Workout History")
-        self.history_btn.setFont(QFont("Arial", 11, QFont.Weight.Bold))
-        self.history_btn.setStyleSheet(
-            """
-            QPushButton { background-color: #6f42c1; color: white; border-radius: 4px; padding: 6px 12px; margin-left: 5px; }
-            QPushButton:hover { background-color: #553098; }
-        """
-        )
-        self.history_btn.clicked.connect(self.open_history_view)
-        left_btn_layout.addWidget(self.history_btn)
-
-        self.exercise_builder_btn = QPushButton("🏋️ Exercise Builder")
-        self.exercise_builder_btn.setFont(QFont("Arial", 11, QFont.Weight.Bold))
-        self.exercise_builder_btn.setStyleSheet(
-            """
-            QPushButton { background-color: #ff7b00; color: white; border-radius: 4px; padding: 6px 12px; margin-left: 5px; }
-            QPushButton:hover { background-color: #cc5d00; }
-        """
-        )
-        self.exercise_builder_btn.clicked.connect(self.open_exercise_builder)
-        left_btn_layout.addWidget(self.exercise_builder_btn)
-
-        self.workout_builder_btn = QPushButton("🧩 Workout Builder")
-        self.workout_builder_btn.setFont(QFont("Arial", 11, QFont.Weight.Bold))
-        self.workout_builder_btn.setStyleSheet(
-            """
-            QPushButton { background-color: #0d6efd; color: white; border-radius: 4px; padding: 6px 12px; margin-left: 5px; }
-            QPushButton:hover { background-color: #0b5ed7; }
-        """
-        )
-        self.workout_builder_btn.clicked.connect(self.open_workout_builder)
-        left_btn_layout.addWidget(self.workout_builder_btn)
-        top_layout.addLayout(left_btn_layout)
-
-        top_layout.addStretch()
-        main_layout.addLayout(top_layout)
-
-        status_layout = QHBoxLayout()
+        # Sub-status bar
         self.file_label = QLabel("No workout selected")
-        self.file_label.setFont(QFont("Arial", 10, QFont.Weight.Normal))
-        self.file_label.setStyleSheet(
-            "color: gray; font-style: italic; margin-top: 4px; margin-bottom: 8px; margin-left: 2px;"
-        )
-        status_layout.addWidget(self.file_label)
+        content_layout.addWidget(self.file_label)
 
-        self.timer_control_layout = QHBoxLayout()
-        self.timer_control_layout.setSpacing(6)
-        self.timer_control_layout.setContentsMargins(0, 0, 0, 0)
+        # Center Display Area
+        self.display_area = QTextBrowser()
+        self.display_area.setStyleSheet(f"font-size: {self.markdown_font_size}px;")
+        content_layout.addWidget(self.display_area)
 
+        # ==========================================
+        # FOOTER CONTROL BAR
+        # ==========================================
+        footer_layout = QHBoxLayout()
+
+        # Timer Section Group
+        timer_container = QWidget()
+        timer_container_layout = QHBoxLayout(timer_container)
+        timer_container_layout.setContentsMargins(6, 6, 6, 6)
+        timer_container_layout.setSpacing(8)
+
+        # Target specific functionality buttons using Object Names for your QSS rules
         self.start_stop_btn = QPushButton("Start")
-        self.start_stop_btn.setFont(QFont("Arial", 11, QFont.Weight.Bold))
-        self.start_stop_btn.setStyleSheet(
-            """
-            QPushButton { background-color: #4a4a4a; color: white; border-radius: 4px; padding: 6px 14px; }
-            QPushButton:hover { background-color: #333333; }
-        """
-        )
+        # self.start_stop_btn.setObjectName("DoneBtn")
         self.start_stop_btn.clicked.connect(self.toggle_timer)
-        self.timer_control_layout.addWidget(self.start_stop_btn)
+        timer_container_layout.addWidget(self.start_stop_btn)
 
         self.timer_label = QLabel("00:00")
-        self.timer_label.setFont(QFont("Courier New", 16, QFont.Weight.Bold))
-        self.timer_label.setStyleSheet(
-            "color: #333; background-color: #e9ecef; padding: 4px 10px; border-radius: 4px; border: 1px solid #ced4da;"
-        )
-        self.timer_control_layout.addWidget(self.timer_label)
+        self.timer_label.setFont(QFont("Courier New", 20, QFont.Weight.Bold))
+        timer_container_layout.addWidget(self.timer_label)
 
         self.reset_btn = QPushButton("Reset")
-        self.reset_btn.setFont(QFont("Arial", 11, QFont.Weight.Bold))
-        self.reset_btn.setStyleSheet(
-            """
-            QPushButton { background-color: #dc3545; color: white; border-radius: 4px; padding: 6px 14px; }
-            QPushButton:hover { background-color: #bd2130; }
-        """
-        )
+        # self.reset_btn.setObjectName("ClearBtn")
         self.reset_btn.clicked.connect(self.reset_timer)
-        self.timer_control_layout.addWidget(self.reset_btn)
+        timer_container_layout.addWidget(self.reset_btn)
 
-        status_layout.addLayout(self.timer_control_layout)
-        status_layout.addStretch()
+        footer_layout.addWidget(timer_container)
+        footer_layout.addStretch()
 
-        self.decrease_font_btn = QPushButton("A-")
-        self.decrease_font_btn.setFixedSize(40, 30)
+        # Font Sizing Controls Section
+        font_layout = QHBoxLayout()
+        font_layout.setSpacing(4)
+
+        self.decrease_font_btn = QPushButton("-")
+        self.decrease_font_btn.setFont(QFont("Courier New", 20, QFont.Weight.Bold))
+        self.decrease_font_btn.setFixedSize(36, 32)
         self.decrease_font_btn.clicked.connect(self.decrease_font_size)
-        status_layout.addWidget(self.decrease_font_btn)
+        font_layout.addWidget(self.decrease_font_btn)
 
         self.font_size_label = QLabel(f"{self.markdown_font_size}px")
         self.font_size_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.font_size_label.setFixedWidth(60)
-        status_layout.addWidget(self.font_size_label)
+        self.font_size_label.setFixedWidth(50)
+        font_layout.addWidget(self.font_size_label)
 
-        self.increase_font_btn = QPushButton("A+")
-        self.increase_font_btn.setFixedSize(40, 30)
+        self.increase_font_btn = QPushButton("+")
+        self.increase_font_btn.setFont(QFont("Courier New", 20, QFont.Weight.Bold))
+        self.increase_font_btn.setFixedSize(36, 32)
         self.increase_font_btn.clicked.connect(self.increase_font_size)
-        status_layout.addWidget(self.increase_font_btn)
+        font_layout.addWidget(self.increase_font_btn)
 
-        main_layout.addLayout(status_layout)
+        footer_layout.addLayout(font_layout)
+        content_layout.addLayout(footer_layout)
 
-        self.display_area = QTextBrowser()
-        self.display_area.setStyleSheet(f"font-size: {self.markdown_font_size}px;")
-        main_layout.addWidget(self.display_area)
+        global_layout.addWidget(content_widget)
 
         self.check_and_load_today_workout()
 
