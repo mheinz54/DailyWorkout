@@ -49,6 +49,7 @@ class WorkoutViewerApp(QMainWindow):
         self.timer_seconds = 0
         self.current_workout_name = ""
         self.markdown_font_size = self.load_saved_font_size()
+        self.is_expanded_mode = False
 
         self.stopwatch = QTimer()
         self.stopwatch.timeout.connect(self.update_timer_display)
@@ -64,10 +65,10 @@ class WorkoutViewerApp(QMainWindow):
         # LEFT SIDEBAR
         # ==========================================
         sidebar_widget = QWidget()
-        sidebar_widget.setFixedWidth(220)
+        sidebar_widget.setFixedWidth(180)
         sidebar_layout = QVBoxLayout(sidebar_widget)
         sidebar_layout.setContentsMargins(15, 20, 15, 20)
-        sidebar_layout.setSpacing(10)
+        sidebar_layout.setSpacing(20)
 
         # Sidebar Title
         sidebar_title = QLabel("Workout Hub")
@@ -103,8 +104,8 @@ class WorkoutViewerApp(QMainWindow):
         # ==========================================
         content_widget = QWidget()
         content_layout = QVBoxLayout(content_widget)
-        content_layout.setContentsMargins(15, 20, 15, 20)
-        content_layout.setSpacing(15)
+        content_layout.setContentsMargins(15, 20, 15, 15)
+        content_layout.setSpacing(5)
 
         # Top Bar: Selection & Status
         top_bar_layout = QHBoxLayout()
@@ -118,6 +119,28 @@ class WorkoutViewerApp(QMainWindow):
         top_bar_layout.addWidget(self.workout_selector)
 
         top_bar_layout.addStretch()
+
+        # Timer Section Group
+        timer_container = QWidget()
+        timer_container_layout = QHBoxLayout(timer_container)
+        timer_container_layout.setContentsMargins(6, 6, 6, 6)
+        timer_container_layout.setSpacing(8)
+
+        # Target specific functionality buttons using Object Names for your QSS rules
+        self.start_stop_btn = QPushButton("Start")
+        self.start_stop_btn.clicked.connect(self.toggle_timer)
+        timer_container_layout.addWidget(self.start_stop_btn)
+
+        self.timer_label = QLabel("00:00")
+        self.timer_label.setFont(QFont("Courier New", 20, QFont.Weight.Bold))
+        timer_container_layout.addWidget(self.timer_label)
+
+        self.reset_btn = QPushButton("Reset")
+        # self.reset_btn.setObjectName("ClearBtn")
+        self.reset_btn.clicked.connect(self.reset_timer)
+        timer_container_layout.addWidget(self.reset_btn)
+
+        top_bar_layout.addWidget(timer_container)
         content_layout.addLayout(top_bar_layout)
 
         # Sub-status bar
@@ -133,29 +156,6 @@ class WorkoutViewerApp(QMainWindow):
         # FOOTER CONTROL BAR
         # ==========================================
         footer_layout = QHBoxLayout()
-
-        # Timer Section Group
-        timer_container = QWidget()
-        timer_container_layout = QHBoxLayout(timer_container)
-        timer_container_layout.setContentsMargins(6, 6, 6, 6)
-        timer_container_layout.setSpacing(8)
-
-        # Target specific functionality buttons using Object Names for your QSS rules
-        self.start_stop_btn = QPushButton("Start")
-        # self.start_stop_btn.setObjectName("DoneBtn")
-        self.start_stop_btn.clicked.connect(self.toggle_timer)
-        timer_container_layout.addWidget(self.start_stop_btn)
-
-        self.timer_label = QLabel("00:00")
-        self.timer_label.setFont(QFont("Courier New", 20, QFont.Weight.Bold))
-        timer_container_layout.addWidget(self.timer_label)
-
-        self.reset_btn = QPushButton("Reset")
-        # self.reset_btn.setObjectName("ClearBtn")
-        self.reset_btn.clicked.connect(self.reset_timer)
-        timer_container_layout.addWidget(self.reset_btn)
-
-        footer_layout.addWidget(timer_container)
         footer_layout.addStretch()
 
         # Font Sizing Controls Section
@@ -182,6 +182,10 @@ class WorkoutViewerApp(QMainWindow):
         footer_layout.addLayout(font_layout)
         content_layout.addLayout(footer_layout)
 
+        # Store sidebar widget and content widget for toggling
+        self.sidebar_widget = sidebar_widget
+        self.content_widget = content_widget
+
         global_layout.addWidget(content_widget)
 
         self.check_and_load_today_workout()
@@ -191,6 +195,7 @@ class WorkoutViewerApp(QMainWindow):
             self.stopwatch.stop()
             self.prompt_record_workout()
             self.set_start_button_state()
+            self.set_expand_mode(False)
         else:
             self.stopwatch.start(1000)
             self.start_stop_btn.setText("Stop")
@@ -200,6 +205,7 @@ class WorkoutViewerApp(QMainWindow):
                 QPushButton:hover { background-color: #d39e00; }
             """
             )
+            self.set_expand_mode(True)
 
     def set_start_button_state(self):
         self.start_stop_btn.setText("Start")
@@ -260,6 +266,22 @@ class WorkoutViewerApp(QMainWindow):
 
     def apply_markdown_font_size(self):
         self.display_area.setStyleSheet(f"font-size: {self.markdown_font_size}px;")
+
+    def set_expand_mode(self, expanded: bool):
+        self.is_expanded_mode = expanded
+
+        if self.is_expanded_mode:
+            # Hide sidebar and controls
+            self.sidebar_widget.setVisible(False)
+            self.workout_selector.setVisible(False)
+            self.file_label.setVisible(False)
+            self.timer_label.setFont(QFont("Courier New", 32, QFont.Weight.Bold))
+        else:
+            # Show sidebar and controls
+            self.sidebar_widget.setVisible(True)
+            self.workout_selector.setVisible(True)
+            self.file_label.setVisible(True)
+            self.timer_label.setFont(QFont("Courier New", 20, QFont.Weight.Bold))
 
     def check_and_load_today_workout(self):
         today_name = datetime.now().strftime("%A")
