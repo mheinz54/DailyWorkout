@@ -31,3 +31,6 @@ target-version = "py310"
 lint.select = ["E", "F", "W", "I", "C", "B", "Q", "SIM"]
 lint.extend-ignore = ["E203", "E501"]
 exclude = ["data", ".git", "__pycache__", ".venv", "build", "dist"]
+
+[tool.ruff.lint.mccabe]
+max-complexity = 20

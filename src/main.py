@@ -283,6 +283,12 @@ class WorkoutViewerApp(QMainWindow):
             self.file_label.setVisible(True)
             self.timer_label.setFont(QFont("Courier New", 20, QFont.Weight.Bold))
 
+        # Refresh the current markdown display to update the layout structure dynamically
+        if hasattr(self, "workout_selector") and self.workout_selector.currentIndex() != -1:
+            self.load_selected_workout_preview(self.workout_selector.currentIndex())
+        else:
+            self.check_and_load_today_workout()
+
     def check_and_load_today_workout(self):
         today_name = datetime.now().strftime("%A")
         _, workout_template_id = get_schedule_for_day(today_name)
@@ -291,6 +297,14 @@ class WorkoutViewerApp(QMainWindow):
             template = get_workout_template_by_id(workout_template_id)
             if template:
                 self.current_workout_name = template[1]
+
+                # Find and set the correct index in the dropdown
+                dropdown_index = self.workout_selector.findData(workout_template_id)
+                if dropdown_index != -1:
+                    self.workout_selector.blockSignals(True)
+                    self.workout_selector.setCurrentIndex(dropdown_index)
+                    self.workout_selector.blockSignals(False)
+
                 markdown_content = self.generate_workout_markdown(workout_template_id, template)
                 self.display_area.setMarkdown(markdown_content)
                 self.file_label.setText(
@@ -301,10 +315,18 @@ class WorkoutViewerApp(QMainWindow):
                 )
                 return
 
+        self.workout_selector.blockSignals(True)
+        self.workout_selector.setCurrentIndex(0)
+        self.workout_selector.blockSignals(False)
+
         self.current_workout_name = ""
         self.display_area.setMarkdown(
             f"<h1>Welcome</h1><p>No workout is assigned for <b>{today_name}</b> yet.</p>"
             "<p>Click <b>Manage Schedule</b> above to link a saved workout to a day of the week.</p>"
+        )
+        self.file_label.setText("No workout selected")
+        self.file_label.setStyleSheet(
+            "color: #6c757d; font-style: italic; margin-top: 4px; margin-bottom: 8px; margin-left: 2px;"
         )
 
     def load_selected_workout_preview(self, index):
@@ -358,7 +380,10 @@ class WorkoutViewerApp(QMainWindow):
             if phase_description:
                 lines.append(f"*   **Phase Notes:** {phase_description}")
             lines.append(f"*   **Rest Between Exercises:** {rest_between_exercises} seconds")
+            lines.append("")
+            lines.append("&nbsp;")
             lines.append("<br/>")
+            lines.append("")
 
             phase_exercises = get_workout_phase_exercises_for_phase(phase_id)
             for order_index, phase_exercise in enumerate(phase_exercises, start=1):
@@ -376,22 +401,62 @@ class WorkoutViewerApp(QMainWindow):
                 alternates_sides = exercise[7]
                 muscle_groups = exercise[9]
 
-                lines.append(f"#### {order_index}. {exercise_name}")
-                if instructions:
-                    lines.append(f"*   **Directions:** <br/> - {instructions}")
-                if measure_type == "Reps" and measure_value is not None:
-                    lines.append(
-                        f"*   **Reps/Time:** {measure_value} {measure_type} {'Per Side' if alternates_sides else ''}"
-                    )
-                elif duration_seconds:
-                    lines.append(
-                        f"*   **Reps/Time:** {duration_seconds} seconds {'Per Side' if alternates_sides else ''}"
-                    )
-                if muscle_groups:
-                    lines.append(f"*   **Muscle Groups:** {muscle_groups}")
-                if image_path:
-                    image_uri = self._resolve_preview_image_uri(image_path)
-                    lines.append(f'<br/><img src="{image_uri}" width="350"  />')
+                # Format layout based on mode
+                if self.is_expanded_mode:
+                    # Clean HTML formatting for Expanded Mode (Inside Table)
+                    details = []
+                    if instructions:
+                        details.append(f"<b>Directions:</b><br/> - {instructions}")
+                    if measure_type == "Reps" and measure_value is not None:
+                        details.append(
+                            f"<b>Reps/Time:</b> {measure_value} {measure_type} {'Per Side' if alternates_sides else ''}"
+                        )
+                    elif duration_seconds:
+                        details.append(
+                            f"<b>Reps/Time:</b> {duration_seconds} seconds {'Per Side' if alternates_sides else ''}"
+                        )
+                    if muscle_groups:
+                        details.append(f"<b>Muscle Groups:</b> {muscle_groups}")
+
+                    details_text = "<br/>".join(details) if details else ""
+
+                    if image_path:
+                        image_uri = self._resolve_preview_image_uri(image_path)
+                        image_html = f'<img src="{image_uri}" width="350" />'
+
+                        table_html = (
+                            f"<h3>{order_index}. {exercise_name}</h3>"
+                            f'<table border="0" cellpadding="10" width="100%">'
+                            f"  <tr>"
+                            f'    <td valign="top" width="60%">{details_text}</td>'
+                            f'    <td valign="top" align="right" width="40%">{image_html}</td>'
+                            f"  </tr>"
+                            f"</table>"
+                            f"<br/>"
+                        )
+                        lines.append(table_html)
+                    else:
+                        lines.append(f"### {order_index}. {exercise_name}")
+                        if details_text:
+                            lines.append(details_text)
+                else:
+                    # Standard Markdown formatting for Normal Mode
+                    lines.append(f"#### {order_index}. {exercise_name}")
+                    if instructions:
+                        lines.append(f"*   **Directions:** <br/> - {instructions}")
+                    if measure_type == "Reps" and measure_value is not None:
+                        lines.append(
+                            f"*   **Reps/Time:** {measure_value} {measure_type} {'Per Side' if alternates_sides else ''}"
+                        )
+                    elif duration_seconds:
+                        lines.append(
+                            f"*   **Reps/Time:** {duration_seconds} seconds {'Per Side' if alternates_sides else ''}"
+                        )
+                    if muscle_groups:
+                        lines.append(f"*   **Muscle Groups:** {muscle_groups}")
+                    if image_path:
+                        image_uri = self._resolve_preview_image_uri(image_path)
+                        lines.append(f'<br/><img src="{image_uri}" width="350"  />')
 
             lines.append("")
             lines.append("&nbsp;")
