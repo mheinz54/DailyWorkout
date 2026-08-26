@@ -143,10 +143,6 @@ class WorkoutViewerApp(QMainWindow):
         top_bar_layout.addWidget(timer_container)
         content_layout.addLayout(top_bar_layout)
 
-        # Sub-status bar
-        self.file_label = QLabel("No workout selected")
-        content_layout.addWidget(self.file_label)
-
         # Center Display Area
         self.display_area = QTextBrowser()
         self.display_area.setStyleSheet(f"font-size: {self.markdown_font_size}px;")
@@ -274,13 +270,11 @@ class WorkoutViewerApp(QMainWindow):
             # Hide sidebar and controls
             self.sidebar_widget.setVisible(False)
             self.workout_selector.setVisible(False)
-            self.file_label.setVisible(False)
             self.timer_label.setFont(QFont("Courier New", 32, QFont.Weight.Bold))
         else:
             # Show sidebar and controls
             self.sidebar_widget.setVisible(True)
             self.workout_selector.setVisible(True)
-            self.file_label.setVisible(True)
             self.timer_label.setFont(QFont("Courier New", 20, QFont.Weight.Bold))
 
         # Refresh the current markdown display to update the layout structure dynamically
@@ -307,12 +301,6 @@ class WorkoutViewerApp(QMainWindow):
 
                 markdown_content = self.generate_workout_markdown(workout_template_id, template)
                 self.display_area.setMarkdown(markdown_content)
-                self.file_label.setText(
-                    f"Loaded today's scheduled workout ({today_name}): {template[1]}"
-                )
-                self.file_label.setStyleSheet(
-                    "color: #007acc; font-style: normal; margin-top: 4px; margin-bottom: 8px; margin-left: 2px;"
-                )
                 return
 
         self.workout_selector.blockSignals(True)
@@ -324,10 +312,6 @@ class WorkoutViewerApp(QMainWindow):
             f"<h1>Welcome</h1><p>No workout is assigned for <b>{today_name}</b> yet.</p>"
             "<p>Click <b>Manage Schedule</b> above to link a saved workout to a day of the week.</p>"
         )
-        self.file_label.setText("No workout selected")
-        self.file_label.setStyleSheet(
-            "color: #6c757d; font-style: italic; margin-top: 4px; margin-bottom: 8px; margin-left: 2px;"
-        )
 
     def load_selected_workout_preview(self, index):
         workout_id = self.workout_selector.itemData(index)
@@ -335,22 +319,15 @@ class WorkoutViewerApp(QMainWindow):
             self.display_area.setMarkdown(
                 "<h1>Workout Preview</h1><p>Select a saved workout from the dropdown to generate and display its markdown preview.</p>"
             )
-            self.file_label.setText("Previewing generated workout markdown")
-            self.file_label.setStyleSheet(
-                "color: #6c757d; font-style: italic; margin-top: 4px; margin-bottom: 8px; margin-left: 2px;"
-            )
             return
 
         template = get_workout_template_by_id(workout_id)
         if not template:
             return
 
+        self.current_workout_name = template[1]
         markdown_content = self.generate_workout_markdown(workout_id, template)
         self.display_area.setMarkdown(markdown_content)
-        self.file_label.setText(f"Previewing saved workout template: {template[1]}")
-        self.file_label.setStyleSheet(
-            "color: #0d6efd; font-style: normal; margin-top: 4px; margin-bottom: 8px; margin-left: 2px;"
-        )
 
     def generate_workout_markdown(self, workout_id, template):
         _, name, description, equipment_needed, phase_rest_seconds = template
