@@ -48,6 +48,7 @@ class WorkoutViewerApp(QMainWindow):
 
         self.timer_seconds = 0
         self.current_workout_name = ""
+        self.current_workout_id = None
         self.markdown_font_size = self.load_saved_font_size()
         self.is_expanded_mode = False
 
@@ -215,7 +216,10 @@ class WorkoutViewerApp(QMainWindow):
     def prompt_record_workout(self):
         workout_name = self.current_workout_name or "Unknown Workout"
         dialog = WorkoutRecordDialog(
-            self, workout_name=workout_name, total_seconds=self.timer_seconds
+            self,
+            workout_name=workout_name,
+            total_seconds=self.timer_seconds,
+            exercises=self.get_current_workout_exercises(),
         )
         response = dialog.exec()
 
@@ -225,7 +229,31 @@ class WorkoutViewerApp(QMainWindow):
                 workout_name,
                 datetime.now().strftime("%Y-%m-%d"),
                 duration_seconds,
+                dialog.get_exercise_results(),
             )
+
+    def get_current_workout_exercises(self):
+        if self.current_workout_id is None:
+            return []
+
+        exercises = []
+        for phase in get_workout_phases_for_template(self.current_workout_id):
+            repeat_count = phase[4] or 1
+            phase_exercises = get_workout_phase_exercises_for_phase(phase[0])
+            for repeat_number in range(1, repeat_count + 1):
+                for phase_exercise in phase_exercises:
+                    exercise = get_exercise_by_id(phase_exercise[2])
+                    if not exercise:
+                        continue
+                    measure_type = exercise[4]
+                    default_value = phase_exercise[3]
+                    if default_value is None:
+                        default_value = exercise[5] if measure_type == "Reps" else exercise[6]
+                    label = f"Round {repeat_number} - {exercise[1]}"
+                    exercises.append(
+                        (exercise[0], label, measure_type, default_value, repeat_number)
+                    )
+        return exercises
 
     def reset_timer(self):
         self.stopwatch.stop()
@@ -291,6 +319,7 @@ class WorkoutViewerApp(QMainWindow):
             template = get_workout_template_by_id(workout_template_id)
             if template:
                 self.current_workout_name = template[1]
+                self.current_workout_id = workout_template_id
 
                 # Find and set the correct index in the dropdown
                 dropdown_index = self.workout_selector.findData(workout_template_id)
@@ -308,6 +337,7 @@ class WorkoutViewerApp(QMainWindow):
         self.workout_selector.blockSignals(False)
 
         self.current_workout_name = ""
+        self.current_workout_id = None
         self.display_area.setMarkdown(
             f"<h1>Welcome</h1><p>No workout is assigned for <b>{today_name}</b> yet.</p>"
             "<p>Click <b>Manage Schedule</b> above to link a saved workout to a day of the week.</p>"
@@ -326,6 +356,7 @@ class WorkoutViewerApp(QMainWindow):
             return
 
         self.current_workout_name = template[1]
+        self.current_workout_id = workout_id
         markdown_content = self.generate_workout_markdown(workout_id, template)
         self.display_area.setMarkdown(markdown_content)
 
@@ -373,8 +404,10 @@ class WorkoutViewerApp(QMainWindow):
                 instructions = exercise[2].replace("\n", "<br/> - ") if exercise[2] else ""
                 image_path = exercise[3]
                 measure_type = exercise[4]
-                measure_value = exercise[5]
+                measure_value = phase_exercise[3] if phase_exercise[3] is not None else exercise[5]
                 duration_seconds = exercise[6]
+                if measure_type == "Duration" and phase_exercise[3] is not None:
+                    duration_seconds = phase_exercise[3]
                 alternates_sides = exercise[7]
                 muscle_groups = exercise[9]
 

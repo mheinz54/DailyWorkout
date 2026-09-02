@@ -107,6 +107,17 @@ class WorkoutPhaseEditor(QWidget):
 
     def add_exercise_by_id(self, exercise_id):
         exercise_name = self.exercise_lookup.get(exercise_id, f"Exercise {exercise_id}")
+        exercise = next(
+            (
+                saved_exercise
+                for saved_exercise in get_exercises()
+                if saved_exercise[0] == exercise_id
+            ),
+            None,
+        )
+        measure_type = exercise[4] if exercise else "Reps"
+        default_value = (exercise[5] if measure_type == "Reps" else exercise[6]) if exercise else 1
+
         row = QWidget()
         row_layout = QHBoxLayout(row)
         row_layout.setContentsMargins(0, 0, 0, 0)
@@ -114,19 +125,27 @@ class WorkoutPhaseEditor(QWidget):
         label = QLabel(exercise_name)
         row_layout.addWidget(label)
 
+        measure_input = QSpinBox()
+        measure_input.setRange(1, 3600 if measure_type == "Duration" else 500)
+        measure_input.setValue(default_value or 1)
+        if measure_type == "Duration":
+            measure_input.setSuffix(" sec")
+        row_layout.addWidget(QLabel("Duration" if measure_type == "Duration" else "Reps"))
+        row_layout.addWidget(measure_input)
+
         remove_btn = QPushButton("Remove")
         remove_btn.clicked.connect(lambda: self.remove_exercise_row(row, exercise_id))
         row_layout.addWidget(remove_btn)
 
         self.exercises_layout.addWidget(row)
-        self.exercise_entries.append((exercise_id, exercise_name, row))
+        self.exercise_entries.append((exercise_id, exercise_name, measure_input, row))
 
     def remove_exercise_row(self, row_widget, exercise_id):
         self.exercises_layout.removeWidget(row_widget)
         row_widget.deleteLater()
         self.exercise_entries = [
-            (saved_id, name, existing_row)
-            for saved_id, name, existing_row in self.exercise_entries
+            (saved_id, name, measure_input, existing_row)
+            for saved_id, name, measure_input, existing_row in self.exercise_entries
             if existing_row is not row_widget
         ]
 
@@ -259,6 +278,8 @@ class WorkoutBuilderDialog(QDialog):
             phase_exercises = get_workout_phase_exercises_for_phase(phase_id)
             for phase_exercise in phase_exercises:
                 editor.add_exercise_by_id(phase_exercise[2])
+                if phase_exercise[3] is not None:
+                    editor.exercise_entries[-1][2].setValue(phase_exercise[3])
 
             self.phase_editors.append(editor)
             self.phases_layout.addWidget(editor)
@@ -312,12 +333,13 @@ class WorkoutBuilderDialog(QDialog):
                 rest_between_exercises_seconds=rest_between_exercises,
             )
 
-            for order_index, (exercise_id, _exercise_name, _row_widget) in enumerate(
+            for order_index, (exercise_id, _exercise_name, measure_input, _row_widget) in enumerate(
                 editor.exercise_entries, start=1
             ):
                 save_workout_phase_exercise(
                     phase_id=phase_id,
                     exercise_id=exercise_id,
+                    measure_value=measure_input.value(),
                     display_order=order_index,
                 )
 

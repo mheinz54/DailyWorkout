@@ -80,12 +80,17 @@ def init_db():
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             phase_id INTEGER NOT NULL,
             exercise_id INTEGER NOT NULL,
+            measure_value INTEGER,
             display_order INTEGER NOT NULL DEFAULT 0,
             FOREIGN KEY (phase_id) REFERENCES workout_phases (id) ON DELETE CASCADE,
             FOREIGN KEY (exercise_id) REFERENCES exercises (id) ON DELETE CASCADE
         )
     """
     )
+    cursor.execute("PRAGMA table_info(workout_phase_exercises)")
+    phase_exercise_columns = [row[1] for row in cursor.fetchall()]
+    if "measure_value" not in phase_exercise_columns:
+        cursor.execute("ALTER TABLE workout_phase_exercises ADD COLUMN measure_value INTEGER")
     cursor.execute(
         """
         CREATE TABLE IF NOT EXISTS user_settings (
@@ -94,6 +99,29 @@ def init_db():
         )
     """
     )
+    cursor.execute(
+        """
+        CREATE TABLE IF NOT EXISTS workout_record_exercises (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            workout_record_id INTEGER NOT NULL,
+            exercise_name TEXT,
+            exercise_id INTEGER,
+            measure_type TEXT NOT NULL,
+            measure_value INTEGER NOT NULL,
+            round_number INTEGER NOT NULL DEFAULT 1,
+            display_order INTEGER NOT NULL DEFAULT 0,
+            FOREIGN KEY (workout_record_id) REFERENCES workout_history (id) ON DELETE CASCADE
+        )
+        """
+    )
+    cursor.execute("PRAGMA table_info(workout_record_exercises)")
+    record_exercise_columns = [row[1] for row in cursor.fetchall()]
+    if "exercise_id" not in record_exercise_columns:
+        cursor.execute("ALTER TABLE workout_record_exercises ADD COLUMN exercise_id INTEGER")
+    if "round_number" not in record_exercise_columns:
+        cursor.execute(
+            "ALTER TABLE workout_record_exercises ADD COLUMN round_number INTEGER NOT NULL DEFAULT 1"
+        )
     days = [
         "Monday",
         "Tuesday",
@@ -112,13 +140,33 @@ def init_db():
     conn.close()
 
 
-def save_workout_record(workout_name, workout_date, duration_seconds):
+def save_workout_record(workout_name, workout_date, duration_seconds, exercises=None):
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     cursor.execute(
         "INSERT INTO workout_history (workout_name, workout_date, duration_seconds) VALUES (?, ?, ?)",
         (workout_name, workout_date, duration_seconds),
     )
+    record_id = cursor.lastrowid
+    for order_index, (
+        exercise_id,
+        exercise_name,
+        measure_type,
+        measure_value,
+        round_number,
+    ) in enumerate(exercises or [], start=1):
+        cursor.execute(
+            "INSERT INTO workout_record_exercises (workout_record_id, exercise_name, exercise_id, measure_type, measure_value, round_number, display_order) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (
+                record_id,
+                exercise_name,
+                exercise_id,
+                measure_type,
+                measure_value,
+                round_number,
+                order_index,
+            ),
+        )
     conn.commit()
     conn.close()
 
@@ -144,6 +192,18 @@ def get_workout_record(record_id):
     row = cursor.fetchone()
     conn.close()
     return row
+
+
+def get_workout_record_exercises(record_id):
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute(
+        "SELECT exercise_id, exercise_name, measure_type, measure_value, round_number FROM workout_record_exercises WHERE workout_record_id = ? ORDER BY display_order ASC",
+        (record_id,),
+    )
+    rows = cursor.fetchall()
+    conn.close()
+    return rows
 
 
 def delete_workout_record(record_id):
@@ -395,12 +455,12 @@ def get_workout_phases_for_template(workout_id):
     return rows
 
 
-def save_workout_phase_exercise(phase_id, exercise_id, display_order):
+def save_workout_phase_exercise(phase_id, exercise_id, measure_value, display_order):
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     cursor.execute(
-        "INSERT INTO workout_phase_exercises (phase_id, exercise_id, display_order) VALUES (?, ?, ?)",
-        (phase_id, exercise_id, display_order),
+        "INSERT INTO workout_phase_exercises (phase_id, exercise_id, measure_value, display_order) VALUES (?, ?, ?, ?)",
+        (phase_id, exercise_id, measure_value, display_order),
     )
     conn.commit()
     conn.close()
@@ -410,7 +470,7 @@ def get_workout_phase_exercises_for_phase(phase_id):
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     cursor.execute(
-        "SELECT id, phase_id, exercise_id, display_order FROM workout_phase_exercises WHERE phase_id = ? ORDER BY display_order ASC",
+        "SELECT id, phase_id, exercise_id, measure_value, display_order FROM workout_phase_exercises WHERE phase_id = ? ORDER BY display_order ASC",
         (phase_id,),
     )
     rows = cursor.fetchall()

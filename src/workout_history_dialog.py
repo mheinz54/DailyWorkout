@@ -13,7 +13,12 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from src.database import delete_workout_record, get_workout_history, get_workout_record
+from src.database import (
+    delete_workout_record,
+    get_workout_history,
+    get_workout_record,
+    get_workout_record_exercises,
+)
 from src.workout_history_edit_dialog import WorkoutHistoryEditDialog
 
 
@@ -123,6 +128,12 @@ class WorkoutHistoryDialog(QDialog):
                 entry_label = QLabel(f"<b>{workout_name}</b> ({duration_text})")
                 row_layout.addWidget(entry_label, stretch=1)
 
+                details_btn = QPushButton("Details")
+                details_btn.clicked.connect(
+                    lambda checked, r_id=record_id: self.show_record_details(r_id)
+                )
+                row_layout.addWidget(details_btn)
+
                 # Edit Action Button
                 edit_btn = QPushButton("Edit")
                 edit_btn.setObjectName("EditBtn")  # Secondary neutral visual style
@@ -143,6 +154,20 @@ class WorkoutHistoryDialog(QDialog):
             self.date_groups[workout_date] = date_group
 
         self.update_calendar_dates([record[2] for record in records])
+
+    def show_record_details(self, record_id):
+        exercises = get_workout_record_exercises(record_id)
+        if not exercises:
+            QMessageBox.information(self, "Workout Details", "No exercise details were recorded.")
+            return
+
+        details = "\n".join(
+            f"{index}. Round {round_number} - {name}: {value} {'seconds' if measure_type == 'Duration' else 'reps'}"
+            for index, (_exercise_id, name, measure_type, value, round_number) in enumerate(
+                exercises, start=1
+            )
+        )
+        QMessageBox.information(self, "Workout Details", details)
 
     def _clear_layout(self, layout):
         if layout is not None:
