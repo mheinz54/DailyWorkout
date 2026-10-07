@@ -58,6 +58,14 @@ def init_db():
         )
         """
     )
+    cursor.execute(
+        """
+        CREATE TABLE IF NOT EXISTS imported_bundles (
+            bundle_id TEXT PRIMARY KEY,
+            imported_at TEXT NOT NULL
+        )
+        """
+    )
     cursor.execute("PRAGMA table_info(programs)")
     program_columns = [row[1] for row in cursor.fetchall()]
     if "active" not in program_columns:

@@ -24,6 +24,7 @@ from PyQt6.QtWidgets import (
 )
 
 from src.active_programs_dialog import ActiveProgramsDialog
+from src.data_transfer_dialog import DataTransferDialog
 from src.database import (
     get_active_program_workouts_for_date,
     get_exercise_by_id,
@@ -120,6 +121,11 @@ class WorkoutViewerApp(QMainWindow):
         sidebar_layout.addWidget(self.today_workouts_list)
 
         sidebar_layout.addStretch()
+
+        self.data_transfer_btn = QPushButton("Import / Export")
+        self.data_transfer_btn.clicked.connect(self.open_data_transfer)
+        sidebar_layout.addWidget(self.data_transfer_btn)
+
         global_layout.addWidget(sidebar_widget)
 
         # ==========================================
@@ -558,6 +564,24 @@ class WorkoutViewerApp(QMainWindow):
         dialog = ProgramBuilderDialog(self)
         dialog.exec()
         self.check_and_load_today_workout()
+
+    def open_data_transfer(self):
+        dialog = DataTransferDialog(self)
+        dialog.exec()
+        if dialog.imported:
+            self.refresh_workout_selector()
+            self.check_and_load_today_workout()
+
+    def refresh_workout_selector(self):
+        selected_workout_id = self.workout_selector.currentData()
+        self.workout_selector.blockSignals(True)
+        self.workout_selector.clear()
+        self.workout_selector.addItem("Select saved workout", -1)
+        for workout_id, name, *_ in get_workout_templates():
+            self.workout_selector.addItem(name, workout_id)
+        selected_index = self.workout_selector.findData(selected_workout_id)
+        self.workout_selector.setCurrentIndex(max(selected_index, 0))
+        self.workout_selector.blockSignals(False)
 
 
 def main():
