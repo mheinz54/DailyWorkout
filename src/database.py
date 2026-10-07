@@ -1,4 +1,5 @@
 import sqlite3
+from datetime import date, timedelta
 from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parents[1]
@@ -11,19 +12,6 @@ DATA_DIR.mkdir(parents=True, exist_ok=True)
 def init_db():
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
-    cursor.execute(
-        """
-        CREATE TABLE IF NOT EXISTS schedule (
-            day_name TEXT PRIMARY KEY,
-            file_path TEXT,
-            workout_template_id INTEGER
-        )
-    """
-    )
-    cursor.execute("PRAGMA table_info(schedule)")
-    schedule_columns = [row[1] for row in cursor.fetchall()]
-    if "workout_template_id" not in schedule_columns:
-        cursor.execute("ALTER TABLE schedule ADD COLUMN workout_template_id INTEGER")
     cursor.execute(
         """
         CREATE TABLE IF NOT EXISTS workout_history (
@@ -60,6 +48,36 @@ def init_db():
             phase_rest_seconds INTEGER NOT NULL DEFAULT 0
         )
     """
+    )
+    cursor.execute(
+        """
+        CREATE TABLE IF NOT EXISTS programs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            active INTEGER NOT NULL DEFAULT 0
+        )
+        """
+    )
+    cursor.execute("PRAGMA table_info(programs)")
+    program_columns = [row[1] for row in cursor.fetchall()]
+    if "active" not in program_columns:
+        cursor.execute("ALTER TABLE programs ADD COLUMN active INTEGER NOT NULL DEFAULT 0")
+    cursor.execute(
+        """
+        CREATE TABLE IF NOT EXISTS program_workouts (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            program_id INTEGER NOT NULL,
+            workout_template_id INTEGER NOT NULL,
+            recurrence_type TEXT NOT NULL,
+            recurrence_interval INTEGER NOT NULL DEFAULT 1,
+            weekdays TEXT NOT NULL DEFAULT '',
+            month_day INTEGER NOT NULL DEFAULT 1,
+            start_date TEXT NOT NULL,
+            display_order INTEGER NOT NULL DEFAULT 0,
+            FOREIGN KEY (program_id) REFERENCES programs (id),
+            FOREIGN KEY (workout_template_id) REFERENCES workout_templates (id)
+        )
+        """
     )
     cursor.execute(
         """
@@ -122,20 +140,6 @@ def init_db():
         cursor.execute(
             "ALTER TABLE workout_record_exercises ADD COLUMN round_number INTEGER NOT NULL DEFAULT 1"
         )
-    days = [
-        "Monday",
-        "Tuesday",
-        "Wednesday",
-        "Thursday",
-        "Friday",
-        "Saturday",
-        "Sunday",
-    ]
-    for day in days:
-        cursor.execute(
-            "INSERT OR IGNORE INTO schedule (day_name, file_path, workout_template_id) VALUES (?, ?, ?)",
-            (day, "", None),
-        )
     conn.commit()
     conn.close()
 
@@ -182,6 +186,19 @@ def get_workout_history():
     return rows
 
 
+def get_workout_record_counts_for_date(workout_date):
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute(
+        "SELECT workout_name, COUNT(*) FROM workout_history "
+        "WHERE workout_date = ? GROUP BY workout_name",
+        (workout_date,),
+    )
+    rows = cursor.fetchall()
+    conn.close()
+    return dict(rows)
+
+
 def get_workout_record(record_id):
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
@@ -220,31 +237,6 @@ def update_workout_record(record_id, workout_name, workout_date, duration_second
     cursor.execute(
         "UPDATE workout_history SET workout_name = ?, workout_date = ?, duration_seconds = ? WHERE id = ?",
         (workout_name, workout_date, duration_seconds, record_id),
-    )
-    conn.commit()
-    conn.close()
-
-
-def get_schedule_for_day(day_name):
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-    cursor.execute(
-        "SELECT file_path, workout_template_id FROM schedule WHERE day_name = ?",
-        (day_name,),
-    )
-    row = cursor.fetchone()
-    conn.close()
-    if row:
-        return row[0], row[1]
-    return "", None
-
-
-def save_schedule_for_day(day_name, file_path="", workout_template_id=None):
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-    cursor.execute(
-        "UPDATE schedule SET file_path = ?, workout_template_id = ? WHERE day_name = ?",
-        (file_path, workout_template_id, day_name),
     )
     conn.commit()
     conn.close()
@@ -410,6 +402,143 @@ def get_workout_template_by_id(workout_id):
     row = cursor.fetchone()
     conn.close()
     return row
+
+
+def get_programs():
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("SELECT id, name FROM programs ORDER BY name ASC")
+    rows = cursor.fetchall()
+    conn.close()
+    return rows
+
+
+def get_programs_with_activation():
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("SELECT id, name, active FROM programs ORDER BY name ASC")
+    rows = cursor.fetchall()
+    conn.close()
+    return rows
+
+
+def set_active_program_ids(program_ids):
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("UPDATE programs SET active = 0")
+    cursor.executemany(
+        "UPDATE programs SET active = 1 WHERE id = ?",
+        [(program_id,) for program_id in program_ids],
+    )
+    conn.commit()
+    conn.close()
+
+
+def get_active_program_workouts_for_date(workout_date):
+    target_date = date.fromisoformat(workout_date)
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute(
+        "SELECT pw.workout_template_id, pw.recurrence_type, pw.recurrence_interval, "
+        "pw.weekdays, pw.month_day, pw.start_date "
+        "FROM programs AS p JOIN program_workouts AS pw ON pw.program_id = p.id "
+        "JOIN workout_templates AS wt ON wt.id = pw.workout_template_id "
+        "WHERE p.active = 1 ORDER BY p.id ASC, pw.display_order ASC, pw.id ASC"
+    )
+    rules = cursor.fetchall()
+    conn.close()
+
+    matching_workouts = []
+    for workout_id, recurrence_type, interval, weekdays, month_day, start_date in rules:
+        start = date.fromisoformat(start_date)
+        if target_date < start:
+            continue
+
+        if recurrence_type == "daily":
+            matches = (target_date - start).days % interval == 0
+        elif recurrence_type == "weekly":
+            selected_weekdays = {int(day) for day in weekdays.split(",") if day}
+            week_start = start - timedelta(days=start.weekday())
+            week_number = (target_date - week_start).days // 7
+            matches = target_date.isoweekday() in selected_weekdays and week_number % interval == 0
+        elif recurrence_type == "monthly":
+            month_number = (target_date.year - start.year) * 12 + target_date.month - start.month
+            matches = target_date.day == month_day and month_number % interval == 0
+        else:
+            matches = False
+
+        if matches:
+            matching_workouts.append(workout_id)
+
+    return matching_workouts
+
+
+def get_program_by_id(program_id):
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("SELECT id, name FROM programs WHERE id = ?", (program_id,))
+    row = cursor.fetchone()
+    conn.close()
+    return row
+
+
+def get_program_workouts(program_id):
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute(
+        "SELECT id, workout_template_id, recurrence_type, recurrence_interval, weekdays, "
+        "month_day, start_date, display_order FROM program_workouts "
+        "WHERE program_id = ? ORDER BY display_order ASC, id ASC",
+        (program_id,),
+    )
+    rows = cursor.fetchall()
+    conn.close()
+    return rows
+
+
+def save_program(program_id, name, workout_rules):
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    try:
+        if program_id is None:
+            cursor.execute("INSERT INTO programs (name) VALUES (?)", (name,))
+            program_id = cursor.lastrowid
+        else:
+            cursor.execute("UPDATE programs SET name = ? WHERE id = ?", (name, program_id))
+            cursor.execute("DELETE FROM program_workouts WHERE program_id = ?", (program_id,))
+
+        for order_index, rule in enumerate(workout_rules, start=1):
+            cursor.execute(
+                "INSERT INTO program_workouts (program_id, workout_template_id, recurrence_type, "
+                "recurrence_interval, weekdays, month_day, start_date, display_order) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                (
+                    program_id,
+                    rule["workout_template_id"],
+                    rule["recurrence_type"],
+                    rule["recurrence_interval"],
+                    rule["weekdays"],
+                    rule["month_day"],
+                    rule["start_date"],
+                    order_index,
+                ),
+            )
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+    return program_id
+
+
+def delete_program(program_id):
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM program_workouts WHERE program_id = ?", (program_id,))
+    cursor.execute("DELETE FROM programs WHERE id = ?", (program_id,))
+    conn.commit()
+    conn.close()
 
 
 def delete_workout_phases_for_template(workout_id):

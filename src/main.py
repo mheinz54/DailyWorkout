@@ -6,7 +6,7 @@ if __package__ in {None, ""}:
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from PyQt6.QtCore import Qt, QTimer
-from PyQt6.QtGui import QFont
+from PyQt6.QtGui import QBrush, QColor, QFont
 from PyQt6.QtWidgets import (
     QApplication,
     QComboBox,
@@ -14,6 +14,8 @@ from PyQt6.QtWidgets import (
     QFrame,
     QHBoxLayout,
     QLabel,
+    QListWidget,
+    QListWidgetItem,
     QMainWindow,
     QPushButton,
     QTextBrowser,
@@ -21,12 +23,14 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
+from src.active_programs_dialog import ActiveProgramsDialog
 from src.database import (
+    get_active_program_workouts_for_date,
     get_exercise_by_id,
-    get_schedule_for_day,
     get_user_setting,
     get_workout_phase_exercises_for_phase,
     get_workout_phases_for_template,
+    get_workout_record_counts_for_date,
     get_workout_template_by_id,
     get_workout_templates,
     init_db,
@@ -34,7 +38,7 @@ from src.database import (
     save_workout_record,
 )
 from src.exercise_builder_dialog import ExerciseBuilderDialog
-from src.schedule_dialog import ScheduleDialog
+from src.program_builder_dialog import ProgramBuilderDialog
 from src.workout_builder_dialog import WorkoutBuilderDialog
 from src.workout_history_dialog import WorkoutHistoryDialog
 from src.workout_record_dialog import WorkoutRecordDialog
@@ -76,9 +80,9 @@ class WorkoutViewerApp(QMainWindow):
         sidebar_layout.addWidget(sidebar_title)
 
         # Navigation Buttons (Images removed)
-        self.schedule_btn = QPushButton("Manage Schedule")
-        self.schedule_btn.clicked.connect(self.open_schedule_manager)
-        sidebar_layout.addWidget(self.schedule_btn)
+        self.active_programs_btn = QPushButton("Active Programs")
+        self.active_programs_btn.clicked.connect(self.open_active_programs)
+        sidebar_layout.addWidget(self.active_programs_btn)
 
         self.history_btn = QPushButton("Workout History")
         self.history_btn.clicked.connect(self.open_history_view)
@@ -96,6 +100,24 @@ class WorkoutViewerApp(QMainWindow):
         self.workout_builder_btn = QPushButton("Workout Builder")
         self.workout_builder_btn.clicked.connect(self.open_workout_builder)
         sidebar_layout.addWidget(self.workout_builder_btn)
+
+        self.program_builder_btn = QPushButton("Program Builder")
+        self.program_builder_btn.clicked.connect(self.open_program_builder)
+        sidebar_layout.addWidget(self.program_builder_btn)
+
+        today_line = QFrame()
+        today_line.setFrameShape(QFrame.Shape.HLine)
+        sidebar_layout.addWidget(today_line)
+
+        today_workouts_label = QLabel("Today's Workouts")
+        today_workouts_label.setStyleSheet("font-weight: bold;")
+        sidebar_layout.addWidget(today_workouts_label)
+
+        self.today_workouts_list = QListWidget()
+        self.today_workouts_list.setMinimumHeight(100)
+        self.today_workouts_list.setMaximumHeight(220)
+        self.today_workouts_list.itemClicked.connect(self.open_today_workout)
+        sidebar_layout.addWidget(self.today_workouts_list)
 
         sidebar_layout.addStretch()
         global_layout.addWidget(sidebar_widget)
@@ -231,6 +253,7 @@ class WorkoutViewerApp(QMainWindow):
                 duration_seconds,
                 dialog.get_exercise_results(),
             )
+            self.refresh_today_workouts()
 
     def get_current_workout_exercises(self):
         if self.current_workout_id is None:
@@ -312,10 +335,12 @@ class WorkoutViewerApp(QMainWindow):
             self.check_and_load_today_workout()
 
     def check_and_load_today_workout(self):
-        today_name = datetime.now().strftime("%A")
-        _, workout_template_id = get_schedule_for_day(today_name)
+        today = datetime.now().date()
+        today_name = today.strftime("%A")
+        self.refresh_today_workouts()
+        workout_ids = get_active_program_workouts_for_date(today.isoformat())
 
-        if workout_template_id is not None:
+        for workout_template_id in workout_ids:
             template = get_workout_template_by_id(workout_template_id)
             if template:
                 self.current_workout_name = template[1]
@@ -340,8 +365,37 @@ class WorkoutViewerApp(QMainWindow):
         self.current_workout_id = None
         self.display_area.setMarkdown(
             f"<h1>Welcome</h1><p>No workout is assigned for <b>{today_name}</b> yet.</p>"
-            "<p>Click <b>Manage Schedule</b> above to link a saved workout to a day of the week.</p>"
+            "<p>Activate a program to see its scheduled workouts here.</p>"
         )
+
+    def refresh_today_workouts(self):
+        today = datetime.now().date().isoformat()
+        completed_counts = get_workout_record_counts_for_date(today)
+        self.today_workouts_list.clear()
+
+        for workout_id in get_active_program_workouts_for_date(today):
+            template = get_workout_template_by_id(workout_id)
+            if not template:
+                continue
+
+            workout_name = template[1]
+            is_completed = completed_counts.get(workout_name, 0) > 0
+            if is_completed:
+                completed_counts[workout_name] -= 1
+            item_text = f"✓ {workout_name}" if is_completed else workout_name
+            item = QListWidgetItem(item_text)
+            if is_completed:
+                item.setForeground(QBrush(QColor("#238636")))
+            item.setData(Qt.ItemDataRole.UserRole, workout_id)
+            if is_completed:
+                item.setToolTip(f"Completed today: {workout_name}")
+            self.today_workouts_list.addItem(item)
+
+    def open_today_workout(self, item):
+        workout_id = item.data(Qt.ItemDataRole.UserRole)
+        index = self.workout_selector.findData(workout_id)
+        if index != -1:
+            self.workout_selector.setCurrentIndex(index)
 
     def load_selected_workout_preview(self, index):
         workout_id = self.workout_selector.itemData(index)
@@ -482,14 +536,15 @@ class WorkoutViewerApp(QMainWindow):
             candidate = (Path(__file__).resolve().parents[1] / candidate).resolve()
         return candidate.as_uri() if candidate.exists() else str(candidate)
 
-    def open_schedule_manager(self):
-        dialog = ScheduleDialog(self)
+    def open_active_programs(self):
+        dialog = ActiveProgramsDialog(self)
         if dialog.exec() == QDialog.DialogCode.Accepted:
             self.check_and_load_today_workout()
 
     def open_history_view(self):
         dialog = WorkoutHistoryDialog(self)
         dialog.exec()
+        self.refresh_today_workouts()
 
     def open_exercise_builder(self):
         dialog = ExerciseBuilderDialog(self)
@@ -498,6 +553,11 @@ class WorkoutViewerApp(QMainWindow):
     def open_workout_builder(self):
         dialog = WorkoutBuilderDialog(self)
         dialog.exec()
+
+    def open_program_builder(self):
+        dialog = ProgramBuilderDialog(self)
+        dialog.exec()
+        self.check_and_load_today_workout()
 
 
 def main():

@@ -1,6 +1,6 @@
 # Daily Workout Viewer
 
-A small PyQt6 desktop app for viewing scheduled saved workouts, tracking a stopwatch, and recording completed workouts to a local SQLite database.
+A small PyQt6 desktop app for viewing program-scheduled workouts, tracking a stopwatch, and recording completed workouts to a local SQLite database.
 
 ## Project layout
 
@@ -11,7 +11,6 @@ DailyWorkout/
 │   ├── __init__.py
 │   ├── main.py
 │   ├── database.py
-│   ├── schedule_dialog.py
 │   ├── workout_record_dialog.py
 │   ├── workout_history_dialog.py
 │   └── workout_history_edit_dialog.py
@@ -85,14 +84,14 @@ Then re-run the tasks.
 ## How it works
 
 - Use the workout dropdown to select a saved workout template.
-- Use Manage Schedule to assign saved workouts to days.
+- Use Program Builder to define recurring workout programs and Active Programs to choose which programs are in use.
 - Use the Start/Stop button to run the stopwatch.
 - When you stop the timer, you can record the workout with the workout name, date, and duration.
 - Use Workout History to review saved records grouped by workout, edit them, delete them, and see a calendar of recorded dates.
 
 ## Data storage
 
-Workout history and schedule settings are stored in:
+Workout history and program settings are stored in:
 
 ```text
 data/workout_schedule.db
