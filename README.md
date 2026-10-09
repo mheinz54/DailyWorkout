@@ -1,6 +1,6 @@
-# Daily Workout Viewer
+# Daily Workout
 
-A small PyQt6 desktop app for viewing program-scheduled workouts, tracking a stopwatch, and recording completed workouts to a local SQLite database.
+A PyQt6 desktop app for viewing program-scheduled workouts, tracking a stopwatch, and recording completed workouts. The desktop app currently stores data in local SQLite; a separate FastAPI service and PostgreSQL database are being introduced as the backend for future clients.
 
 ## Project layout
 
@@ -29,6 +29,12 @@ Install the app dependency with:
 
 ```bash
 pip3 install PyQt6
+```
+
+To install the backend and development dependencies as well:
+
+```bash
+python3 -m pip install -r requirements-dev.txt
 ```
 
 ## Run the app
@@ -95,5 +101,23 @@ Workout history and program settings are stored in:
 
 ```text
 data/workout_schedule.db
+```
+
+## Backend service
+
+The API and PostgreSQL database run independently of the desktop app. Start them with Docker Compose:
+
+```bash
+docker compose up --build
+```
+
+Docker Compose reads settings from `.env`. Copy `.env.example` to `.env` and replace the placeholder database password before starting the service. The local `.env` is ignored by Git. `API_PORT` controls the host port; the default is `8765`. Interactive API documentation is available at `http://localhost:8765/docs`; `/health` checks that the service is running and `/health/ready` checks its database connection.
+
+This is the initial server foundation: the desktop app still uses its existing SQLite database, and no existing data is migrated yet.
+
+Run the backend tests with:
+
+```bash
+python3 -m pytest
 ```
 

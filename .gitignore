@@ -1,6 +1,7 @@
 # Ignore local tracking database files
 *.db
 images/*
+.env
 
 # Ignore macOS system display cache files
 .DS_Store
